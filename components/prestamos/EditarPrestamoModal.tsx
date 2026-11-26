@@ -1,911 +1,472 @@
-'use client';
-import { formatFechaBogota } from '@/lib/format-date'
+'use client'
 
-import { useState, useEffect, useRef } from 'react';
-import { X, Save, Clock, Edit3, Lock, User, Loader2, Package } from 'lucide-react';
-import { createPortal } from 'react-dom';
-import { useNotification } from '@/components/providers/NotificationProvider';
-import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
-import {
-  formatCOPDesdeNumero,
-  formatCurrency,
-  formatLoanTerm,
-  parseCOPInputToNumber,
-} from '@/lib/utils';
-import { prestamosService } from '@/services/prestamos-service';
-import { formatErrorForComponent } from '@/lib/api/api';
-import { articulosService } from '@/services/articulos-service';
-import { normalizeDateKey } from '@/lib/rutas-core';
-import { TipoAmortizacion } from '@/types/enums';
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { AlertCircle, Banknote, Loader2, Package, Save, X } from 'lucide-react'
+import { useNotification } from '@/components/providers/NotificationProvider'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+import FieldLabel from '@/components/ui/FieldLabel'
+import { Selector } from '@/components/ui/Selector'
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
-import { logger } from '@/lib/logger'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
-import type { OpcionCuotas } from '@/services/articulos-service'
-import { Selector } from '@/components/ui/Selector'
-import { CampoFecha } from '@/components/ui/CampoFecha'
-import Cifra from '@/components/ui/Cifra'
-import AyudaContextual from '@/components/ui/AyudaContextual'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { normalizeDateKey } from '@/lib/rutas-core'
+import { BARRA_DE_ARRASTRE, CUERPO_HOJA_MODAL, FONDO_HOJA_MODAL, PANEL_HOJA_MODAL, PIE_HOJA_MODAL } from '@/lib/ui/hoja-modal'
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
+import { articulosService, type OpcionCuotas } from '@/services/articulos-service'
+import { prestamosService, type CambiosPrestamo, type SimulacionEdicionPrestamo } from '@/services/prestamos-service'
+import type { Cuota, Prestamo } from '@/types/domain'
+import { TipoAmortizacion } from '@/types/enums'
 
-interface EditarPrestamoModalProps {
-  id: string;
-  onClose: () => void;
-  onSuccess?: () => void;
+type Props = { id: string; onClose: () => void; onSuccess?: () => void }
+
+const frecuencias = [
+  { value: 'DIARIO', label: 'Diaria', porMes: 30 },
+  { value: 'SEMANAL', label: 'Semanal', porMes: 4 },
+  { value: 'QUINCENAL', label: 'Quincenal', porMes: 2 },
+  { value: 'MENSUAL', label: 'Mensual', porMes: 1 },
+]
+const formatoPlazo = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 })
+const amortizaciones = [
+  { value: TipoAmortizacion.INTERES_SIMPLE, label: 'Interés simple' },
+  { value: TipoAmortizacion.INTERES_PLANO, label: 'Amortización (cuota fija)' },
+  { value: TipoAmortizacion.FRANCESA, label: 'Francesa (histórica)' },
+]
+const estados = {
+  ACTIVO: 'Activo',
+  EN_MORA: 'En mora',
+  PAGADO: 'Pagado',
+  PENDIENTE_APROBACION: 'Pendiente de aprobación',
+  BORRADOR: 'Borrador',
+  INCUMPLIDO: 'Incumplido',
+  PERDIDA: 'Pérdida',
+}
+const campo = 'min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 disabled:bg-slate-50 disabled:text-slate-600'
+const boton = 'min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50'
+
+function formatoNumero(valor: number | string | null | undefined) {
+  return valor == null || valor === '' || !Number.isFinite(Number(valor)) ? '—' : formatCurrency(valor)
 }
 
+function fechaCorta(valor?: string | null) {
+  return normalizeDateKey(valor).split('-').reverse().join('/') || '—'
+}
 
+type Borrador = {
+  capital: string
+  inicial: string
+  tasa: string
+  cuotas: string
+  plazo: string
+  frecuencia: string
+  tipo: TipoAmortizacion | ''
+  notas: string
+}
 
-// Aqui vivian dos formulas de dinero propias de esta pantalla
-// (`calcularAmortizacionPreview` y `calcularInteresPlanoPreview`). El resumen
-// proyectado ahora sale de `/loans/simular`, que reutiliza la misma
-// `calculateInterestAndCuotas` de la creacion, asi que ya no hay una tercera
-// copia de la matematica que pueda divergir.
+function datosIniciales(prestamo: Prestamo): Borrador {
+  return {
+    capital: prestamo.monto == null ? '' : formatCOPInputValue(String(Math.round(Number(prestamo.monto)))),
+    inicial: prestamo.cuotaInicial == null ? '' : formatCOPInputValue(String(Math.round(Number(prestamo.cuotaInicial)))),
+    tasa: prestamo.tasaInteres == null ? '' : String(prestamo.tasaInteres),
+    cuotas: prestamo.cantidadCuotas == null ? '' : String(prestamo.cantidadCuotas),
+    plazo: prestamo.plazoMeses == null ? '' : String(prestamo.plazoMeses),
+    frecuencia: prestamo.frecuenciaPago || '',
+    tipo: amortizaciones.find((opcion) => opcion.value === prestamo.tipoAmortizacion)?.value ?? '',
+    notas: prestamo.notas ?? '',
+  }
+}
 
-export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPrestamoModalProps) {
-  const { showNotification } = useNotification();
-  const { refreshNotificaciones } = useNotificaciones();
-  const [mounted, setMounted] = useState(false);
-  const [visible, setVisible] = useState(false);
-  const [isEditing, setIsEditing] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
+type Carga = { credito: Prestamo; opciones: OpcionCuotas[] }
+type Resultado = { clave: string; plan: SimulacionEdicionPrestamo } | { clave: string; error: string }
 
-  const [backendInteresTotal, setBackendInteresTotal] = useState(0);
-  const [backendTotalFinal, setBackendTotalFinal] = useState(0);
-  const [backendCuotaProyectada, setBackendCuotaProyectada] = useState(0);
+function condicionesEditadas(actual: Borrador, original: Borrador, esArticulo: boolean): CambiosPrestamo {
+  const cambios: CambiosPrestamo = {}
+  if (actual.capital !== original.capital) cambios.monto = parseCOPInputToNumber(actual.capital)
+  if (actual.cuotas !== original.cuotas) cambios.cantidadCuotas = Number(actual.cuotas)
+  if (actual.plazo !== original.plazo) cambios.plazoMeses = Number(actual.plazo)
+  if (actual.frecuencia !== original.frecuencia) cambios.frecuenciaPago = actual.frecuencia
+  if (esArticulo && actual.inicial !== original.inicial) cambios.cuotaInicial = parseCOPInputToNumber(actual.inicial)
+  if (!esArticulo && Number(actual.tasa) !== Number(original.tasa)) cambios.tasaInteres = Number(actual.tasa)
+  if (!esArticulo && actual.tipo !== original.tipo && actual.tipo) cambios.tipoAmortizacion = actual.tipo
+  return cambios
+}
 
-  // Form state
-  const [monto, setMonto] = useState(0);
-  const [tasaStr, setTasaStr] = useState('');
-  const [cuotasStr, setCuotasStr] = useState('');
-  const [plazoMeses, setPlazoMeses] = useState(0);  
-  const [frecuencia, setFrecuencia] = useState('MENSUAL');
-  const [estado, setEstado] = useState('ACTIVO');
-  const [tipoAmortizacion, setTipoAmortizacion] = useState<TipoAmortizacion>(TipoAmortizacion.INTERES_SIMPLE);
+function ResumenImporte({ etiqueta, valor, ayuda }: { etiqueta: string; valor: string; ayuda?: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs font-medium text-slate-600">{etiqueta}</dt>
+      <dd className="mt-1 break-words text-base font-bold tabular-nums text-slate-900">{valor}</dd>
+      {ayuda && <dd className="mt-0.5 break-words text-xs text-slate-600">{ayuda}</dd>}
+    </div>
+  )
+}
 
-  // Client info from backend
-  const [clienteNombre, setClienteNombre] = useState('');
-  const [clienteDni, setClienteDni] = useState('');
-  const [clienteTelefono, setClienteTelefono] = useState('');
-  const [numeroPrestamo, setNumeroPrestamo] = useState('');
-  const [tipoPrestamo, setTipoPrestamo] = useState('EFECTIVO');
-  const [productoNombre, setProductoNombre] = useState('');
-  
-  // New editable fields
-  const [cuotaInicial, setCuotaInicial] = useState(0);
-  const [fechaInicio, setFechaInicio] = useState('');
-  const [notas, setNotas] = useState('');
-  const [garantia, setGarantia] = useState('');
-
-  // Original values for comparison
-  // Valores tal como se cargaron, para saber qué cambió. Va en estado y no en un
-  // ref porque se lee durante el render (hasChanges y la lista de cambios), y
-  // leer un ref en render es justo lo que React marca como incorrecto: cambiarlo
-  // no vuelve a pintar y el compilador no puede seguirlo.
-  const [original, setOriginal] = useState<{
-    monto: number; tasa: number; cuotas: number; frecuencia: string; estado: string;
-    cuotaInicial: number; fechaInicio: string; notas: string; garantia: string;
-    tipoAmortizacion: TipoAmortizacion; plazoMeses: number;
-  }>({
-    monto: 0, tasa: 0, cuotas: 0, frecuencia: 'MENSUAL', estado: 'ACTIVO',
-    cuotaInicial: 0, fechaInicio: '', notas: '', garantia: '',
-    tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE, plazoMeses: 0
-  });
-  // Versión del préstamo al cargarlo, para el control de conflictos al guardar.
-  const versionRef = useRef<number | undefined>(undefined);
-
-  const tasa = Number(tasaStr) || 0;
-  const cuotas = Number(cuotasStr) || 0;
-  const [opcionesCuotas, setOpcionesCuotas] = useState<OpcionCuotas[]>([]);
-  const [planIndex, setPlanIndex] = useState<number | null>(null);
-  const [autoCuotas, setAutoCuotas] = useState(false);
-
-  // Vista previa del plan de cuotas (proyección del backend con la MISMA fórmula
-  // que la creación real: coincide al peso con lo que se guardaría).
-  const [planPreview, setPlanPreview] = useState<Array<{
-    numeroCuota: number;
-    fechaVencimiento: string;
-    monto: number;
-    montoCapital: number;
-    montoInteres: number;
-  }>>([]);
-  const [planLoading, setPlanLoading] = useState(false);
-  // El resumen proyectado sale de la misma simulacion que la tabla. Antes la
-  // tabla usaba el backend y el resumen una formula local: en la misma pantalla
-  // podian diferir en un peso por cuota (medido: 60 de 1134 combinaciones).
-  const [simResumen, setSimResumen] = useState<{
-    interesTotal: number;
-    totalFinal: number;
-    cuotaProyectada: number;
-  } | null>(null);
-  const [verPlanCompleto, setVerPlanCompleto] = useState(false);
-  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
-  // una pila, asi que con modales anidados Escape cierra solo el de encima.
-  useModalDialog({
-    onClose: () => handleClose(),
-  })
-
-  const hasChanges = monto !== original.monto 
-    || tasa !== original.tasa 
-    || cuotas !== original.cuotas 
-    || frecuencia !== original.frecuencia 
-    || estado !== original.estado
-    || cuotaInicial !== original.cuotaInicial
-    || fechaInicio !== original.fechaInicio
-    || notas !== original.notas
-    || garantia !== original.garantia
-    || tipoAmortizacion !== original.tipoAmortizacion
-    || plazoMeses !== original.plazoMeses;
-
-  const isArticle = tipoPrestamo?.toUpperCase() === 'ARTICULO';
-  const themeColor = isArticle ? 'orange' : 'blue';
-
-  // El resumen proyectado sale de `/loans/simular`, la misma proyeccion que
-  // alimenta la tabla de cuotas de abajo y que usa `calculateInterestAndCuotas`,
-  // es decir la formula con la que se guardaria.
-  //
-  // Antes habia aqui tres formulas locales (una francesa propia, una de interes
-  // plano y una division directa para interes simple) y solo la tabla venia del
-  // backend, asi que la misma pantalla mostraba dos cifras distintas para el
-  // mismo credito. Medido sobre 1134 combinaciones de interes simple: 60
-  // discrepaban, siempre en un peso por cuota. Y en un credito FRANCESA la
-  // formula local tomaba la tasa mensual como tasa del periodo e ignoraba la
-  // frecuencia, con lo que la diferencia no era de un peso.
-  //
-  // Mientras la simulacion viaja (va con 400 ms de espera) se mantiene la
-  // anterior en pantalla; `planLoading` es lo que avisa que se esta actualizando.
-  const interesTotal = hasChanges
-    ? (isArticle ? 0 : (simResumen?.interesTotal ?? backendInteresTotal))
-    : backendInteresTotal;
-
-  const totalRecaudar = hasChanges
-    ? (isArticle ? monto : (simResumen?.totalFinal ?? backendTotalFinal))
-    : backendTotalFinal;
-
-  const cobroPorCuota = hasChanges
-    ? (simResumen?.cuotaProyectada ?? backendCuotaProyectada)
-    : backendCuotaProyectada;
+export default function EditarPrestamoModal({ id, onClose, onSuccess }: Props) {
+  const titulo = useId()
+  const { showNotification } = useNotification()
+  const { refreshNotificaciones } = useNotificaciones()
+  const [carga, setCarga] = useState<Carga | null>(null)
+  const [borrador, setBorrador] = useState<Borrador | null>(null)
+  const [errorCarga, setErrorCarga] = useState<string | null>(null)
+  const [intentoCarga, setIntentoCarga] = useState(0)
+  const [guardando, setGuardando] = useState(false)
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null)
+  const [resultado, setResultado] = useState<Resultado | null>(null)
+  const [intentoSimular, setIntentoSimular] = useState(0)
+  const [verPlanCompleto, setVerPlanCompleto] = useState(false)
+  const guardandoRef = useRef(false)
+  const cerrar = () => { if (!guardandoRef.current) onClose() }
+  const { contenedorRef, propsDialogo, capa } = useModalDialog({ onClose: cerrar })
 
   useEffect(() => {
-    setMounted(true);
-    requestAnimationFrame(() => setVisible(true));
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = 'unset'; };
-  }, []);
+    const anterior = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = anterior }
+  }, [])
 
-  // Traer los datos reales del préstamo desde el backend
   useEffect(() => {
-    const fetchLoan = async () => {
-      setFetching(true);
+    let vigente = true
+    async function cargar() {
       try {
-        const data = await prestamosService.obtenerPrestamoPorId(id);
-        versionRef.current = (data)?.version;
-        const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
-        const m = Number(data.monto) || 0;
-        const t = Number(data.tasaInteres) || 0;
-        const c = Number(data.cantidadCuotas) || 0;
-        const p = Number(data.plazoMeses) || 0;
-        const f = data.frecuenciaPago || 'MENSUAL';
-        const e = data.estado || 'ACTIVO';
-        const ci = Number(data.cuotaInicial || 0);
-        const fi = data.fechaInicio ? normalizeDateKey(data.fechaInicio) : '';
-        const n = data.notas || '';
-        const g = data.garantia || '';
-        const ta = (data.tipoAmortizacion || TipoAmortizacion.INTERES_SIMPLE) as TipoAmortizacion;
-
-        const interesBackend = Number(data.interesTotal || 0);
-        setBackendInteresTotal(interesBackend);
-        setBackendTotalFinal(((data.tipoPrestamo || '').toUpperCase() === 'ARTICULO') ? (m + ci) : (m + interesBackend));
-        const primeraCuota = Array.isArray(cuotasData) && cuotasData.length > 0 ? Number(cuotasData[0].monto || 0) : 0;
-        setBackendCuotaProyectada(primeraCuota);
-
-        setMonto(m); setTasaStr(String(t)); setCuotasStr(String(c)); setPlazoMeses(p);
-        setFrecuencia(f); setEstado(e); setTipoAmortizacion(ta);
-        setCuotaInicial(ci); setFechaInicio(fi); setNotas(n); setGarantia(g);
-        setTipoPrestamo(data.tipoPrestamo || 'EFECTIVO');
-        setProductoNombre(data.producto?.nombre || '');
-        setNumeroPrestamo(data.numeroPrestamo || id);
-        setClienteNombre(data.cliente ? `${data.cliente.nombres || ''} ${data.cliente.apellidos || ''}`.trim() : '');
-        setClienteDni(data.cliente?.dni || '');
-        setClienteTelefono(data.cliente?.telefono || '');
-        // Al cargar NO se auto-derivan las cuotas: se respeta la cantidad guardada.
-        // La derivación automática (plazo × frecuencia) solo debe activarse cuando
-        // el usuario cambia el plazo o la frecuencia; si no, un artículo QUINCENAL
-        // de 1 mes se abría mostrando 2 cuotas (y un cambio pendiente falso).
-        setAutoCuotas(false);
-        if (data.producto?.id) {
-          const art = await articulosService.obtenerArticuloPorId(String(data.producto.id));
-          const ops = art?.opcionesCuotas || [];
-          setOpcionesCuotas(ops);
-          const idx = ops.findIndex((op) => Number(op.numeroCuotas) === Number(p));
-          setPlanIndex(idx >= 0 ? idx : null);
+        const credito = await prestamosService.obtenerPrestamoPorId(id)
+        if (!vigente) return
+        setCarga({ credito, opciones: [] })
+        setBorrador(datosIniciales(credito))
+        if (credito.tipoPrestamo?.toUpperCase() !== 'ARTICULO' || !credito.producto?.id || credito.motivoBloqueoPlan) return
+        try {
+          const articulo = await articulosService.obtenerArticuloPorId(credito.producto.id)
+          if (vigente) setCarga({ credito, opciones: articulo?.opcionesCuotas ?? [] })
+        } catch {
+          // El plazo numérico se puede editar sin depender del catálogo.
         }
-        
-        setOriginal({
-          monto: m, tasa: t, cuotas: c, frecuencia: f, estado: e,
-          cuotaInicial: ci, fechaInicio: fi, notas: n, garantia: g,
-          tipoAmortizacion: ta, plazoMeses: p
-        });
-      } catch (err) {
-        console.error('Error cargando préstamo para editar:', err);
-        showNotification('error', mensajeDeError(err, 'No se pudo cargar el préstamo'), 'Error');
-      } finally {
-        setFetching(false);
+      } catch (error) {
+        if (vigente) setErrorCarga(mensajeDeError(error, 'No se pudo cargar el crédito.'))
       }
-    };
-    fetchLoan();
-  }, [id]);
+    }
+    void cargar()
+    return () => { vigente = false }
+  }, [id, intentoCarga])
+
+  const credito = carga?.credito.id === id ? carga.credito : null
+  const original = useMemo(() => credito ? datosIniciales(credito) : null, [credito])
+  const esArticulo = credito?.tipoPrestamo?.toUpperCase() === 'ARTICULO'
+  const bloqueo = credito?.motivoBloqueoPlan
+  const cambios = useMemo(() => borrador && original && !bloqueo
+    ? condicionesEditadas(borrador, original, esArticulo) : {}, [borrador, original, bloqueo, esArticulo])
+  const { cuotaInicial: nuevaInicial, ...cambiosCalendario } = cambios
+  const cambiaCalendario = Object.keys(cambiosCalendario).length > 0
+  const cambiaNotas = borrador?.notas !== original?.notas
+  const hayCambios = cambiaCalendario || nuevaInicial !== undefined || cambiaNotas
+  const errorParametros = borrador && cambiaCalendario && (
+    parseCOPInputToNumber(borrador.capital) <= 0 || !borrador.cuotas || Number(borrador.cuotas) < 1 ||
+    Number(borrador.cuotas) > 1000 || !borrador.plazo || Number(borrador.plazo) < 1 ||
+    (!esArticulo && (!borrador.tasa || !Number.isFinite(Number(borrador.tasa))))
+  )
+  const solicitud = cambiaCalendario && !errorParametros
+    ? JSON.stringify({ ...cambiosCalendario, version: credito?.version }) : ''
+  const clave = solicitud && `${id}:${intentoSimular}:${solicitud}`
 
   useEffect(() => {
-    if (!isArticle) return;
-    const meses = Number(plazoMeses || 0);
-    const f = frecuencia;
-    let c = 0;
-    if (meses > 0) {
-      if (f === 'DIARIO') c = meses * 30;
-      else if (f === 'SEMANAL') c = meses * 4;
-      else if (f === 'QUINCENAL') c = meses * 2;
-      else if (f === 'MENSUAL') c = meses;
-      else c = meses * 4;
-    }
-    if (c > 0 && autoCuotas && c !== cuotas) setCuotasStr(String(c));
-  }, [plazoMeses, frecuencia, isArticle, autoCuotas, cuotas]);
+    if (!solicitud) return
+    let vigente = true
+    const timeout = setTimeout(() => {
+      void prestamosService.simularEdicion(id, JSON.parse(solicitud) as CambiosPrestamo)
+        .then((plan) => { if (vigente) setResultado({ clave, plan }) })
+        .catch((error) => {
+          if (vigente) setResultado({ clave, error: mensajeDeError(error, 'No se pudo calcular el nuevo plan.') })
+        })
+    }, 350)
+    return () => { vigente = false; clearTimeout(timeout) }
+  }, [id, clave, solicitud])
 
-  // Proyección del plan de cuotas: se pide al backend con debounce cada vez que
-  // cambia un parámetro que afecta las cuotas. Así la tabla muestra exactamente
-  // lo que se guardaría, sin reimplementar la fórmula en el front (que fue justo
-  // la fuente de divergencias en pesos que ya se corrigió).
-  useEffect(() => {
-    if (fetching) return;
-    if (!(monto > 0) || !(cuotas > 0)) {
-      setPlanPreview([]);
-      setSimResumen(null);
-      return;
-    }
-    let cancelado = false;
-    setPlanLoading(true);
-    const t = setTimeout(async () => {
-      try {
-        const sim = await prestamosService.simularPlan({
-          tipoAmortizacion,
-          monto,
-          tasaInteres: tasa,
-          cantidadCuotas: cuotas,
-          plazoMeses,
-          frecuenciaPago: frecuencia,
-          fechaInicio: fechaInicio || undefined,
-          tipoPrestamo,
-          cuotaInicial,
-        });
-        if (!cancelado) {
-          setPlanPreview(sim.cuotas || []);
-          setSimResumen({
-            interesTotal: Number(sim.interesTotal) || 0,
-            totalFinal: Number(sim.totalFinal) || 0,
-            cuotaProyectada: Number(sim.cuotaProyectada) || 0,
-          });
-        }
-      } catch {
-        if (!cancelado) {
-          setPlanPreview([]);
-          setSimResumen(null);
-        }
-      } finally {
-        if (!cancelado) setPlanLoading(false);
-      }
-    }, 400);
-    return () => { cancelado = true; clearTimeout(t); };
-  }, [fetching, monto, tasa, cuotas, plazoMeses, frecuencia, tipoAmortizacion, tipoPrestamo, cuotaInicial, fechaInicio]);
+  const respuesta = clave && resultado?.clave === clave ? resultado : null
+  const plan = respuesta && 'plan' in respuesta ? respuesta.plan : null
+  const errorPlan = respuesta && 'error' in respuesta ? respuesta.error : null
+  const calculando = Boolean(clave && !respuesta)
+  const filas: Array<Partial<Cuota>> = cambiaCalendario ? (plan?.cuotas ?? []) : (credito?.cuotas ?? [])
+  const interesRegistrado = credito?.interesTotal
+  const interes = cambiaCalendario ? plan?.interesTotal : interesRegistrado
+  const total = cambiaCalendario ? plan?.totalFinal : credito?.montoTotal ??
+    (credito?.monto != null && interesRegistrado != null ? Number(credito.monto) + Number(interesRegistrado) : null)
+  const primeraCuota = cambiaCalendario ? plan?.cuotaProyectada : filas[0]?.monto
+  const plazoDeCalculo = cambiaCalendario ? plan?.plazoInteresMeses : credito?.plazoInteresMeses
+  const estado = credito?.estadoEfectivo ?? credito?.estado
+  const estadoAprobacion = credito?.estadoAprobacion === 'APROBADO' ? 'Aprobado'
+    : credito?.estadoAprobacion === 'PENDIENTE' ? 'Pendiente de aprobación'
+    : credito?.estadoAprobacion === 'RECHAZADO' ? 'Rechazado' : null
+  const puedeGuardar = Boolean(credito && hayCambios && !guardando && (!cambiaCalendario || plan))
 
-  // Cambios pendientes campo por campo (antes → después), para ver el impacto
-  // real antes de guardar. Solo aparecen los que de verdad cambiaron.
-  const cambios: Array<{ label: string; antes: string; despues: string }> = [];
-  {
-    const o = original;
-    const money = (v: number) => formatCurrency(v);
-    if (monto !== o.monto) cambios.push({ label: 'Capital', antes: money(o.monto), despues: money(monto) });
-    if (!isArticle && tasa !== o.tasa) cambios.push({ label: 'Tasa de interés', antes: `${o.tasa}%`, despues: `${tasa}%` });
-    if (cuotas !== o.cuotas) cambios.push({ label: 'N° de cuotas', antes: String(o.cuotas), despues: String(cuotas) });
-    if (plazoMeses !== o.plazoMeses) cambios.push({ label: 'Plazo (meses)', antes: String(o.plazoMeses), despues: String(plazoMeses) });
-    if (frecuencia !== o.frecuencia) cambios.push({ label: 'Frecuencia', antes: o.frecuencia, despues: frecuencia });
-    if (!isArticle && tipoAmortizacion !== o.tipoAmortizacion) {
-      const nombreTipo = (t: TipoAmortizacion) => t === TipoAmortizacion.FRANCESA ? 'Francesa (histórico)' : t === TipoAmortizacion.INTERES_PLANO ? 'Amortización' : 'Interés simple';
-      cambios.push({ label: 'Tipo de interés', antes: nombreTipo(o.tipoAmortizacion), despues: nombreTipo(tipoAmortizacion) });
-    }
-    if (isArticle && cuotaInicial !== o.cuotaInicial) cambios.push({ label: 'Cuota inicial', antes: money(o.cuotaInicial), despues: money(cuotaInicial) });
-    if (estado !== o.estado) cambios.push({ label: 'Estado', antes: o.estado.replace(/_/g, ' '), despues: estado.replace(/_/g, ' ') });
+  function cambiar<K extends keyof Borrador>(campo: K, valor: Borrador[K]) {
+    setErrorGuardar(null)
+    setBorrador((prev) => prev && { ...prev, [campo]: valor })
   }
 
-  const fmtFechaCorta = (iso: string) => {
-    if (!iso) return '—';
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
-    const d = new Date(iso);
-    return isNaN(d.getTime()) ? '—' : formatFechaBogota(d);
-  };
+  function cambiarPlanArticulo(meses: number, frecuencia: string, precio?: number) {
+    setErrorGuardar(null)
+    setBorrador((prev) => {
+      if (!prev) return prev
+      const factor = frecuencias.find((opcion) => opcion.value === frecuencia)?.porMes
+      return {
+        ...prev, plazo: String(meses), frecuencia,
+        cuotas: factor ? String(meses * factor) : prev.cuotas,
+        capital: precio === undefined ? prev.capital
+          : formatCOPInputValue(String(Math.max(0, Math.round(precio - parseCOPInputToNumber(prev.inicial))))),
+      }
+    })
+  }
 
-  const handleClose = () => {
-    setVisible(false);
-    setTimeout(onClose, 200);
-  };
-
-  const handleSubmit = async () => {
-    setLoading(true);
+  async function guardar(evento: React.FormEvent) {
+    evento.preventDefault()
+    if (!puedeGuardar || guardandoRef.current || !credito || !borrador) return
+    guardandoRef.current = true
+    setGuardando(true)
+    setErrorGuardar(null)
     try {
-      // El tipo se DERIVA del servicio que lo recibe, asi que un campo mal escrito o
-      // que el DTO del backend no acepte deja de compilar.
-      const payload: Parameters<typeof prestamosService.actualizarPrestamo>[1] = {};
-
-      if (monto !== original.monto) payload.monto = monto;
-      if (tasa !== original.tasa) payload.tasaInteres = tasa;
-      if (cuotas !== original.cuotas) payload.cantidadCuotas = cuotas;
-      if (frecuencia !== original.frecuencia) payload.frecuenciaPago = frecuencia;
-      if (estado !== original.estado) payload.estado = estado;
-      if (cuotaInicial !== original.cuotaInicial) payload.cuotaInicial = cuotaInicial;
-      if (fechaInicio !== original.fechaInicio) payload.fechaInicio = fechaInicio;
-      if (notas !== original.notas) payload.notas = notas;
-      if (garantia !== original.garantia) payload.garantia = garantia;
-      if (tipoAmortizacion !== original.tipoAmortizacion) payload.tipoAmortizacion = tipoAmortizacion;
-      if (plazoMeses !== original.plazoMeses) payload.plazoMeses = plazoMeses;
-
-      // Control de conflictos: mandamos la versión cargada. Si el servidor tiene
-      // una más nueva (otro editó / edición offline desincronizada), el backend
-      // rechaza como conflicto (409) en vez de sobrescribir en silencio.
-      if (versionRef.current != null) payload.version = versionRef.current;
-
-      await prestamosService.actualizarPrestamo(id, payload);
-      showNotification('success', 'El crédito ha sido actualizado correctamente', 'Éxito');
-      
-      // Intentar descargar contrato si es artículo a cuotas tras la edición
-      if (isArticle) {
+      const actualizado = await prestamosService.actualizarPrestamo(id, {
+        ...cambios,
+        ...(cambiaNotas ? { notas: borrador.notas } : {}),
+        version: credito.version,
+      })
+      if (!actualizado) {
+        showNotification('info', 'Los cambios quedaron pendientes de sincronización.', 'Sin conexión')
+        onClose()
+        return
+      }
+      showNotification('success', 'El crédito fue actualizado.', 'Cambios guardados')
+      if (esArticulo && (cambiaCalendario || nuevaInicial !== undefined)) {
         try {
-          // Re-importar exportService si no está disponible o usar el importado
-          const { exportService } = await import('@/services/export-service');
-          await exportService.exportContrato(id);
-        } catch (err) {
-          // La edición SI se guardó: lo que falló es volver a bajar el
-          // contrato, y callarlo dejaba al usuario esperando el archivo.
-          logger.error('No se pudo descargar el contrato tras la edición', err);
-          showNotification(
-            'warning',
-            'Los cambios se guardaron, pero no se pudo descargar el contrato actualizado. Puedes descargarlo desde el detalle del crédito.',
-            'Contrato',
-          );
+          const { exportService } = await import('@/services/export-service')
+          await exportService.exportContrato(id)
+        } catch (error) {
+          showNotification('warning', mensajeDeError(error, 'No se pudo descargar el contrato actualizado.'), 'Contrato')
         }
       }
-
-      try {
-        refreshNotificaciones();
-      } catch (error) {
-        // El refresco es secundario: la accion ya se hizo.
-        // Se avisa solo en desarrollo, que es donde sirve.
-        logger.warn('Fallo el refresco de notificaciones tras editar el credito', error)
-      }
-      if (onSuccess) onSuccess();
-      handleClose();
-    } catch (err) {
-      const msg = formatErrorForComponent(err);
-      showNotification('error', msg, 'Error al actualizar');
+      void Promise.resolve().then(refreshNotificaciones).catch(() => {})
+      onSuccess?.()
+      onClose()
+    } catch (error) {
+      setErrorGuardar(mensajeDeError(error, 'No se pudieron guardar los cambios.'))
     } finally {
-      setLoading(false);
+      guardandoRef.current = false
+      setGuardando(false)
     }
-  };
+  }
 
-  const getEstadoColor = (e: string) => {
-    switch (e) {
-      case 'ACTIVO': return 'bg-emerald-100/50 text-emerald-700 border-emerald-200';
-      case 'PENDIENTE':
-      case 'PENDIENTE_APROBACION':
-        return 'bg-amber-100 text-amber-900 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.3)] ring-2 ring-amber-200 animate-pulse';
-      case 'PAGADO': return 'bg-blue-100/50 text-blue-700 border-blue-200';
-      case 'EN_MORA': return 'bg-rose-100/50 text-rose-700 border-rose-200';
-      default: return 'bg-slate-100 text-slate-700 border-slate-200';
-    }
-  };
-
-  if (!mounted) return null;
+  // El modal se abre mediante una acción del usuario, pero puede pre-renderizarse.
+  if (typeof document === 'undefined') return null
 
   return createPortal(
-    <div className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={handleClose}>
-      <div
-        className={`flex flex-col bg-white shadow-2xl w-full overflow-hidden border border-slate-200 transition-all duration-300 h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl sm:max-w-5xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header: mismo estilo claro que el modal de usuario — icono en
-            recuadro, título grande bicolor y subtítulo legible. */}
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 md:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className={`shrink-0 rounded-xl p-2.5 ${isArticle ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-600'}`}>
-              {isArticle ? <Package className="h-6 w-6" /> : <Edit3 className="h-6 w-6" />}
-            </div>
-            <div className="min-w-0">
-              <h2 className="truncate text-xl font-bold tracking-tight md:text-2xl">
-                <span className="text-blue-600">Editar </span>
-                <span className="text-orange-500">{isArticle ? 'Crédito de Artículo' : 'Préstamo'}</span>
-              </h2>
-              <p className="truncate text-xs font-medium text-slate-500">{numeroPrestamo || id}</p>
-            </div>
+    <div className={FONDO_HOJA_MODAL} style={{ zIndex: capa }}>
+      <div ref={contenedorRef} {...propsDialogo} aria-labelledby={titulo} className={`${PANEL_HOJA_MODAL} max-w-4xl`}>
+        <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
+        <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 px-4 py-3 sm:px-6">
+          <div className={`grid size-10 shrink-0 place-items-center rounded-lg ${esArticulo ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'}`}>
+            {esArticulo ? <Package size={20} aria-hidden="true" /> : <Banknote size={20} aria-hidden="true" />}
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsEditing(!isEditing)}
-              className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                isEditing
-                  ? 'bg-slate-900 text-white shadow-lg'
-                  : `bg-white border text-${themeColor}-600 border-${themeColor}-200 hover:bg-${themeColor}-50`
-              }`}
-            >
-              {isEditing ? (
-                <span className="flex items-center gap-1.5"><Lock className="h-3 w-3" /> Bloquear</span>
-              ) : (
-                <span className="flex items-center gap-1.5"><Edit3 className="h-3 w-3" /> Habilitar edición</span>
-              )}
+          <div className="min-w-0 flex-1">
+            <h2 id={titulo} className="text-lg font-bold text-slate-900">{esArticulo ? 'Editar crédito de artículo' : 'Editar préstamo'}</h2>
+            {credito && <p className="break-words text-xs font-medium text-slate-600">{credito.numeroPrestamo}</p>}
+          </div>
+          <Tooltip texto="Cerrar">
+            <button type="button" onClick={cerrar} disabled={guardando} aria-label="Cerrar"
+              className="grid size-11 shrink-0 place-items-center rounded-lg text-slate-600 hover:bg-slate-100">
+              <X size={20} aria-hidden="true" />
             </button>
-            <Tooltip texto="Cerrar">
-              <button type="button" onClick={handleClose} aria-label="Cerrar" className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
-                <X className="h-5 w-5" />
-              </button>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto bg-white/50">
-          {fetching ? (
-            <div className="space-y-4 p-6" aria-busy="true">
-              <span className="sr-only">Cargando el préstamo…</span>
-              <Skeleton className="h-4 w-40" />
-              <SkeletonTexto lineas={5} />
-              <Skeleton className="h-24 w-full rounded-2xl" />
-            </div>
-          ) : (
-          <>
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* LEFT COLUMN: Cliente + Estado + Resumen */}
-            <div className="space-y-4">
-              {/* Bloque Cliente */}
-              <div className="p-4 rounded-3xl border bg-white border-slate-100 shadow-sm relative overflow-hidden group">
-                <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-[0.03] transition-transform duration-700 group-hover:scale-150 ${isArticle ? 'bg-orange-500' : 'bg-blue-500'}`}></div>
-                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4 flex items-center gap-2">
-                  <User className={`w-3 h-3 ${isArticle ? 'text-orange-500' : 'text-blue-500'}`} />
-                  Titular del Crédito
-                </p>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[8px] text-slate-400 uppercase font-black tracking-widest block mb-1">Nombre Completo</label>
-                    <p className="text-sm font-black text-slate-900 leading-none">{clienteNombre || '—'}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[8px] text-slate-400 uppercase font-black tracking-widest block mb-1">Cédula</label>
-                      <p className="text-[11px] font-bold text-slate-700">{clienteDni || '—'}</p>
-                    </div>
-                    <div>
-                      <label className="text-[8px] text-slate-400 uppercase font-black tracking-widest block mb-1">Contacto</label>
-                      <p className="text-[11px] font-bold text-slate-700">{clienteTelefono || '—'}</p>
-                    </div>
-                  </div>
-                </div>
+          </Tooltip>
+        </header>
+        <form onSubmit={guardar} className="flex min-h-0 flex-1 flex-col">
+          <div className={`${CUERPO_HOJA_MODAL} space-y-5 overscroll-contain px-4 py-5 sm:px-6`}>
+            {errorCarga ? (
+              <div className="space-y-3">
+                <p role="alert" className="text-sm text-rose-700">{errorCarga}</p>
+                <button type="button" className={boton} onClick={() => {
+                  setErrorCarga(null)
+                  setIntentoCarga((actual) => actual + 1)
+                }}>Reintentar</button>
               </div>
-
-              {/* Estado Block */}
-              <div className={`p-4 rounded-3xl border transition-all duration-300 ${isEditing ? 'bg-white border-orange-200 shadow-xl' : 'bg-white border-slate-100 shadow-sm'}`}>
-                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4 flex items-center gap-2">
-                  <Clock className={`w-3 h-3 ${isArticle ? 'text-orange-500' : 'text-blue-500'}`} />
-                  Estado del Crédito
-                </p>
-                {isEditing ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {['ACTIVO', 'PENDIENTE_APROBACION'].map((e) => (
-                      <button
-                        key={e}
-                        onClick={() => setEstado(e)}
-                        className={`py-2 px-3 rounded-2xl text-[9px] font-black uppercase tracking-widest border transition-all ${
-                          estado === e || (estado === 'PENDIENTE' && e === 'PENDIENTE_APROBACION')
-                            ? `${getEstadoColor(e)} shadow-md ring-2 ring-slate-100`
-                            : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-white hover:border-slate-200'
-                        }`}
-                      >
-                        {e === 'PENDIENTE_APROBACION' ? 'PENDIENTE' : e}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border ${getEstadoColor(estado)}`}>
-                      {estado === 'PENDIENTE_APROBACION' ? 'Pendiente de Aprobación' : estado.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                )}
+            ) : !credito || !borrador ? (
+              <div aria-busy="true" className="space-y-4">
+                <span className="sr-only">Cargando el crédito…</span>
+                <Skeleton className="h-6 w-48" />
+                <SkeletonTexto lineas={5} />
               </div>
-
-               {/* Resumen Proyectado (Nueva Ubicación) */}
-               <div className={`p-4 rounded-[2rem] border-2 border-dashed shadow-inner ${isArticle ? 'bg-orange-50/50 border-orange-100' : 'bg-emerald-50/50 border-emerald-100'}`}>
-                <div className="flex flex-col gap-4">
-                  <div className="flex justify-between items-start border-b border-black/5 pb-3">
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <label className={`text-[8px] font-black uppercase tracking-[0.2em] flex items-center gap-1.5 ${isArticle ? 'text-orange-400' : 'text-emerald-500'}`}>
-                        Cuota Proyectada
-                        {/* La proyeccion se le pide al backend con 400 ms de espera.
-                            Sin este aviso, durante ese rato el resumen muestra las
-                            cifras de antes del cambio y parece que no reacciona. */}
-                        {hasChanges && planLoading && (
-                          <span className="inline-flex items-center gap-1 font-bold normal-case tracking-normal opacity-70">
-                            <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                            actualizando
-                          </span>
-                        )}
-                      </label>
-                      <p className={`text-xl font-black tabular-nums leading-none truncate ${isArticle ? 'text-orange-900' : 'text-emerald-900'}`}>{formatCurrency(cobroPorCuota)}</p>
-                      <p className={`text-[8px] font-bold uppercase tracking-widest mt-1 ${isArticle ? 'text-orange-600' : 'text-emerald-600'}`}>
-                        Frecuencia {frecuencia.toLowerCase()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <label className={`text-[8px] font-black uppercase tracking-[0.2em] ${isArticle ? 'text-orange-400' : 'text-emerald-500'}`}>{isArticle ? 'Total a Financiar' : 'Total al Finalizar'}</label>
-                    <p className={`text-xl font-black tabular-nums leading-none truncate ${isArticle ? 'text-orange-900' : 'text-emerald-900'}`}>{formatCurrency(isArticle ? (totalRecaudar - cuotaInicial) : totalRecaudar)}</p>
-                    <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full mt-1.5 ${isArticle ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                      <div className="w-1 h-1 rounded-full bg-current animate-pulse"></div>
-                      <span className="text-[9px] font-black uppercase whitespace-nowrap">{isArticle ? `Financiando con ${formatCurrency(cuotaInicial)} inicial` : `Gana +${formatCurrency(interesTotal)}`}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cambios pendientes: antes → después, campo por campo */}
-              {hasChanges && cambios.length > 0 && (
-                <div className={`p-4 rounded-3xl border-2 border-dashed ${isArticle ? 'bg-orange-50/60 border-orange-200' : 'bg-blue-50/60 border-blue-200'}`}>
-                  <p className={`text-[9px] font-black uppercase tracking-[0.15em] mb-3 flex items-center gap-2 ${isArticle ? 'text-orange-700' : 'text-blue-700'}`}>
-                    <span className={`w-2 h-2 rounded-full animate-pulse ${isArticle ? 'bg-orange-500' : 'bg-blue-600'}`}></span>
-                    Cambios pendientes ({cambios.length})
-                  </p>
-                  <div className="space-y-2">
-                    {cambios.map((c) => (
-                      <div key={c.label} className="flex items-center justify-between gap-3 text-[11px]">
-                        <span className="font-bold text-slate-500 shrink-0">{c.label}</span>
-                        <span className="flex items-center gap-1.5 min-w-0 justify-end">
-                          <span className="font-bold text-slate-400 line-through truncate">{c.antes}</span>
-                          <span className="text-slate-300">→</span>
-                          <span className={`font-black truncate ${isArticle ? 'text-orange-700' : 'text-blue-700'}`}>{c.despues}</span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* RIGHT COLUMN: Financial Block */}
-            <div className="space-y-4">
-              <div className={`p-4 rounded-3xl border transition-all duration-300 ${isEditing ? 'bg-white border-blue-200 shadow-xl' : 'bg-white border-slate-100 shadow-sm'}`}>
-                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3 flex items-center gap-2">
-                  <span className={`w-3 h-3 rounded-full flex items-center justify-center text-[8px] text-white ${isArticle ? 'bg-orange-500' : 'bg-blue-600'}`}>$</span>
-                  Parámetros del Crédito
-                </p>
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className={`text-[8px] font-black uppercase tracking-widest block ${isArticle ? 'text-orange-500' : 'text-blue-600'}`}>Capital</label>
-                    {isEditing ? (
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                        <input
-                          type="text"
-                          value={formatCOPDesdeNumero(monto)}
-                          onChange={(e) => setMonto(parseCOPInputToNumber(e.target.value))}
-                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl pl-7 pr-4 py-3 text-lg font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white transition-all shadow-inner"
-                        />
-                      </div>
-                    ) : (
-                      <Cifra
-                        valor={monto}
-                        tamano="enorme"
-                        className="font-black text-slate-900 tabular-nums tracking-tighter leading-none"
-                      />
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">N° de Cuotas</label>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={cuotasStr}
-                          onChange={(e) => {
-                            setCuotasStr(e.target.value.replace(/[^0-9]/g, ''));
-                            setAutoCuotas(false);
-                          }}
-                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                        />
-                      ) : (
-                        <p className="text-lg font-black text-slate-900">{cuotas} <span className="text-[10px] text-slate-400 font-bold">CUOTAS</span></p>
-                      )}
-                    </div>
-                    {!isArticle && (
-                      <div className="space-y-1">
-                        <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Tasa Interés (%)</label>
-                        {isEditing ? (
-                          <div className="relative">
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={tasaStr}
-                              onChange={(e) => setTasaStr(e.target.value.replace(/[^0-9.]/g, ''))}
-                              className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
-                          </div>
-                        ) : (
-                          <p className="text-lg font-black text-slate-900">{tasa}%</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Fila compacta: Tipo de interés (préstamo) + Frecuencia */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {!isArticle && (
-                      <div className="space-y-1">
-                        <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Tipo de Interés<AyudaContextual ayuda="tipoDeInteres" de="el tipo de interés" tamano="pequeno" /></label>
-                        {isEditing ? (
-                          <Selector
-                            value={tipoAmortizacion}
-                            onChange={(v) => setTipoAmortizacion(v as TipoAmortizacion)}
-                            etiqueta="Tipo de amortización"
-                            className="rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-900"
-                            opciones={[
-                              { value: TipoAmortizacion.INTERES_SIMPLE, label: 'Interés Simple' },
-                              { value: TipoAmortizacion.INTERES_PLANO, label: 'Amortización (cuota fija)' },
-                              { value: TipoAmortizacion.FRANCESA, label: 'Amortización Francesa (Histórico)' },
-                            ]}
-                          />
-                        ) : (
-                          <p className="text-xs font-black text-slate-900">
-                            {tipoAmortizacion === TipoAmortizacion.FRANCESA
-                              ? 'Amortización Francesa'
-                              : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
-                              ? 'Amortización (cuota fija)'
-                              : 'Interés Simple'}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    <div className={`space-y-1 ${isArticle ? 'col-span-2' : ''}`}>
-                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Frecuencia de Pago<AyudaContextual ayuda="frecuenciaDePago" de="la frecuencia de pago" tamano="pequeno" /></label>
-                      {isEditing ? (
-                        <Selector
-                          value={frecuencia}
-                          onChange={(v) => { setFrecuencia(v); setAutoCuotas(true); }}
-                          etiqueta="Frecuencia de pago"
-                          className="rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-900"
-                          opciones={[
-                            { value: 'DIARIO', label: 'Diario' },
-                            { value: 'SEMANAL', label: 'Semanal' },
-                            { value: 'QUINCENAL', label: 'Quincenal' },
-                            { value: 'MENSUAL', label: 'Mensual' },
-                          ]}
-                        />
-                      ) : (
-                        <p className="text-xs font-black text-blue-600 uppercase tracking-wider">{frecuencia}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Plazo (artículo con plan: ancho completo por el texto largo) */}
-                  {isEditing && isArticle && opcionesCuotas.length > 0 ? (
-                    <div className="space-y-1">
-                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Plazo Total (Meses)</label>
-                      <Selector
-                        value={planIndex !== null ? String(planIndex) : ''}
-                        onChange={(v) => {
-                          const idx = v ? parseInt(v) : null;
-                          setPlanIndex(idx);
-                          if (idx !== null) {
-                            const op = opcionesCuotas[idx];
-                            const meses = Number(op.numeroCuotas);
-                            const precioTotal = Number(op.precioTotal);
-                            setPlazoMeses(meses);
-                            setMonto(Math.max(0, precioTotal - cuotaInicial));
-                            setAutoCuotas(true);
-                          }
-                        }}
-                        etiqueta="Plazo del plan"
-                        placeholder="Seleccionar plazo..."
-                        className="rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-900"
-                        opciones={opcionesCuotas
-                          .map((op, i: number) => ({ op, i, meses: Number(op.numeroCuotas) }))
-                          .filter(({ meses }) => !isNaN(meses))
-                          .map(({ op, i, meses }) => ({
-                            value: String(i),
-                            label:
-                              meses +
-                              (meses === 1 ? ' Mes' : ' Meses') +
-                              ' - Total: ' +
-                              formatCurrency(op.precioTotal),
-                          }))}
-                      />
-                    </div>
-                  ) : null}
-
-                  {/* Fila compacta: Plazo (préstamo/número) + Fecha inicio */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {!(isEditing && isArticle && opcionesCuotas.length > 0) && (
-                      <div className="space-y-1">
-                        <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Plazo Total (Meses)</label>
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            min="1"
-                            value={plazoMeses}
-                            onChange={(e) => setPlazoMeses(Math.max(1, parseInt(e.target.value) || 0))}
-                            className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                          />
-                        ) : (
-                          <p className="text-sm font-black text-slate-900">
-                            {formatLoanTerm({ plazoMeses, cantidadCuotas: cuotas, frecuenciaPago: frecuencia })}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    <div className="space-y-1">
-                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Fecha Inicio<AyudaContextual ayuda="fechaInicio" de="la fecha de inicio" tamano="pequeno" /></label>
-                                            <CampoFecha
-                        value={fechaInicio}
-                        onChange={() => {}}
-                        className="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-2xl px-3 py-2 text-xs font-black outline-none cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
-                  {isArticle && (
-                    <div className="p-4 bg-orange-50/50 rounded-2xl border border-orange-100">
-                      <div className="flex items-center gap-2 mb-2">
-                         <Package className="w-3 h-3 text-orange-500" />
-                         <span className="text-[9px] font-black text-orange-600 uppercase">Detalles de Venta</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-[7px] text-orange-400 uppercase font-black block">Cuota Inicial<AyudaContextual ayuda="cuotaInicialDeArticulo" de="la cuota inicial" tamano="pequeno" /></label>
-                          {isEditing ? (
-                            <input
-                              type="text"
-                              value={formatCOPDesdeNumero(cuotaInicial)}
-                              onChange={(e) => setCuotaInicial(parseCOPInputToNumber(e.target.value))}
-                              className="w-full bg-white border border-orange-200 text-slate-900 rounded-xl px-3 py-1.5 text-xs font-black outline-none focus:ring-1 focus:ring-orange-400"
-                            />
-                          ) : (
-                            <p className="text-[13px] font-black text-slate-900">{formatCurrency(cuotaInicial)}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="text-[7px] text-orange-400 uppercase font-black block">Artículo / Combo</label>
-                          <p className="text-[11px] font-bold text-orange-700 uppercase leading-tight mt-1">{productoNombre || 'ARTÍCULO SIN NOMBRE'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Notas / Observaciones</label>
-                    {isEditing ? (
-                      <textarea
-                        value={notas}
-                        onChange={(e) => setNotas(e.target.value)}
-                        rows={2}
-                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl p-3 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white resize-none"
-                        placeholder="Sin notas registradas..."
-                      />
-                    ) : (
-                      <p className="text-[10px] text-slate-500 font-medium italic bg-slate-50 p-3 rounded-2xl">{notas || 'Sin notas.'}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Plan de cuotas proyectado (full-width). Viene del backend con la
-              misma fórmula de la creación: coincide al peso con lo que se guarda. */}
-          <div className="px-6 pb-6">
-            <div className="rounded-3xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-white ${isArticle ? 'bg-orange-500' : 'bg-blue-600'}`}>
-                    <Clock className="w-3.5 h-3.5" />
-                  </span>
-                  <div>
-                    <p className="text-[11px] font-black text-slate-800 leading-none">Plan de cuotas proyectado</p>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                      {hasChanges ? 'Con los cambios aplicados' : 'Plan actual'}
+            ) : (
+              <>
+                <section aria-label="Titular y estado del crédito" className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="break-words text-base font-bold text-slate-900">
+                      {[credito.cliente?.nombres, credito.cliente?.apellidos].filter(Boolean).join(' ') || 'Titular no informado'}
+                    </p>
+                    <p className="mt-0.5 break-words text-sm text-slate-600">
+                      {[credito.cliente?.dni ? `CC ${credito.cliente.dni}` : '', credito.cliente?.telefono, esArticulo && credito.producto?.nombre].filter(Boolean).join(' · ')}
                     </p>
                   </div>
-                </div>
-                {planLoading && (
-                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculando...
-                  </span>
-                )}
-              </div>
-
-              {planPreview.length === 0 && !planLoading ? (
-                <div className="px-5 py-8 text-center text-[11px] font-bold text-slate-400">
-                  Ingresa capital y número de cuotas para ver el plan.
-                </div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[520px] text-left text-[11px]">
-                      <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wider text-slate-400">
-                        <tr>
-                          <th className="px-4 py-2.5">N°</th>
-                          <th className="px-4 py-2.5">Vencimiento</th>
-                          <th className="px-4 py-2.5 text-right">Capital</th>
-                          {!isArticle && <th className="px-4 py-2.5 text-right">Interés</th>}
-                          <th className="px-4 py-2.5 text-right">Cuota</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50">
-                        {(verPlanCompleto ? planPreview : planPreview.slice(0, 5)).map((c) => (
-                          <tr key={c.numeroCuota} className="hover:bg-slate-50/70">
-                            <td className="px-4 py-2.5 font-black text-slate-700">{c.numeroCuota}</td>
-                            <td className="px-4 py-2.5 font-bold text-slate-500 tabular-nums">{fmtFechaCorta(c.fechaVencimiento)}</td>
-                            <td className="px-4 py-2.5 text-right font-bold text-slate-700 tabular-nums">{formatCurrency(c.montoCapital)}</td>
-                            {!isArticle && <td className="px-4 py-2.5 text-right font-bold text-slate-500 tabular-nums">{formatCurrency(c.montoInteres)}</td>}
-                            <td className={`px-4 py-2.5 text-right font-black tabular-nums ${isArticle ? 'text-orange-700' : 'text-blue-700'}`}>{formatCurrency(c.monto)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {planPreview.length > 5 && (
-                    <button
-                      type="button"
-                      onClick={() => setVerPlanCompleto((v) => !v)}
-                      className="w-full py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 border-t border-slate-100 transition-colors"
-                    >
-                      {verPlanCompleto ? 'Ver menos' : `Ver las ${planPreview.length} cuotas`}
-                    </button>
+                  {estado && (
+                    <div className="text-left sm:text-right">
+                      <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${estado === 'EN_MORA' ? 'bg-rose-50 text-rose-800' : 'bg-slate-100 text-slate-700'}`}>
+                        {estados[estado] ?? estado}
+                      </span>
+                      {estado === 'EN_MORA' && credito.cuotasVencidas != null && credito.cuotasVencidas > 0 &&
+                        <p className="mt-1 text-xs text-rose-700">{credito.cuotasVencidas} {credito.cuotasVencidas === 1 ? 'cuota vencida' : 'cuotas vencidas'}</p>}
+                      {estadoAprobacion && estado !== 'PENDIENTE_APROBACION' &&
+                        <p className="mt-1 text-xs text-slate-600">Revisión: {estadoAprobacion}</p>}
+                    </div>
                   )}
-                </>
-              )}
-            </div>
-          </div>
-          </>
-          )}
-        </div>
+                </section>
 
-        {/* Footer */}
-        <div className="px-8 py-5 bg-white border-t border-slate-100 flex gap-4">
-          <button
-            onClick={handleClose}
-            className="flex-1 py-3.5 bg-slate-50 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all border border-slate-100 active:scale-95"
-            disabled={loading}
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !hasChanges}
-            className={`flex-[2] py-3.5 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-30 disabled:grayscale disabled:scale-100 ${
-              isArticle 
-                ? 'bg-gradient-to-r from-orange-500 to-orange-600 shadow-orange-500/20' 
-                : 'bg-gradient-to-r from-blue-600 to-indigo-700 shadow-blue-500/20'
-            }`}
-          >
-            {loading ? (
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
+                <section aria-label="Resumen financiero" className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-slate-900">Resumen financiero</h3>
+                    <span role="status" className="text-xs font-medium text-slate-600">
+                      {calculando ? 'Calculando proyección…' : cambiaCalendario ? (plan ? 'Proyección sin guardar' : 'Proyección no disponible') : 'Plan registrado'}
+                    </span>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <ResumenImporte etiqueta={esArticulo ? 'Capital financiado' : 'Capital prestado'} valor={formatoNumero(cambios.monto ?? credito.monto)} />
+                    <ResumenImporte etiqueta={esArticulo ? 'Cuota inicial' : 'Interés total'} valor={formatoNumero(esArticulo ? nuevaInicial ?? credito.cuotaInicial : interes)}
+                      ayuda={!esArticulo && plan && interesRegistrado != null && Number(interesRegistrado) !== plan.interesTotal
+                        ? `Registrado: ${formatoNumero(interesRegistrado)}` : undefined} />
+                    <ResumenImporte etiqueta={esArticulo ? 'Total en cuotas' : 'Total del plan'} valor={formatoNumero(total)} />
+                    <ResumenImporte etiqueta={cambiaCalendario ? 'Primera cuota proyectada' : 'Primera cuota registrada'} valor={formatoNumero(primeraCuota)}
+                      ayuda={frecuencias.find((opcion) => opcion.value === borrador.frecuencia)?.label} />
+                  </dl>
+                  <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-200 pt-3 sm:grid-cols-4">
+                    <ResumenImporte etiqueta="Pagado registrado" valor={formatoNumero(credito.totalPagado)} />
+                    <ResumenImporte etiqueta="Saldo pendiente registrado" valor={formatoNumero(credito.montoPendiente ?? credito.saldoPendiente)} />
+                    <div><dt className="text-xs text-slate-600">Fecha de inicio</dt><dd className="mt-1 text-sm font-semibold text-slate-900">{fechaCorta(credito.fechaInicio)}</dd></div>
+                    <div><dt className="text-xs text-slate-600">Primer cobro</dt><dd className="mt-1 text-sm font-semibold text-slate-900">{fechaCorta(credito.fechaPrimerCobro ?? credito.cuotas?.[0]?.fechaVencimiento)}</dd></div>
+                  </dl>
+                </section>
+
+                <section aria-label="Condiciones del crédito" className="space-y-3 border-b border-slate-200 pb-5">
+                  <h3 className="text-sm font-bold text-slate-900">Condiciones del crédito</h3>
+                  {bloqueo && <p className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                    <AlertCircle size={17} aria-hidden="true" className="mt-0.5 shrink-0" />{bloqueo}
+                  </p>}
+                  <fieldset disabled={Boolean(bloqueo) || guardando} className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
+                    <div className="min-w-0">
+                      <FieldLabel htmlFor={`${titulo}-capital`}>Capital (COP)</FieldLabel>
+                      <input id={`${titulo}-capital`} className={campo} inputMode="numeric" value={borrador.capital}
+                        onChange={(evento) => cambiar('capital', formatCOPInputValue(evento.target.value))} />
+                    </div>
+                    {esArticulo ? (
+                      <div className="min-w-0">
+                        <FieldLabel htmlFor={`${titulo}-inicial`} ayuda="cuotaInicialDeArticulo">Cuota inicial (COP)</FieldLabel>
+                        <input id={`${titulo}-inicial`} className={campo} inputMode="numeric" value={borrador.inicial}
+                          onChange={(evento) => cambiar('inicial', formatCOPInputValue(evento.target.value))} />
+                      </div>
+                    ) : (
+                      <div className="min-w-0">
+                        <FieldLabel htmlFor={`${titulo}-tasa`}>
+                          {borrador.tipo === TipoAmortizacion.INTERES_SIMPLE ? 'Tasa mensual (%)' : 'Tasa del plan (%)'}
+                        </FieldLabel>
+                        <input id={`${titulo}-tasa`} className={campo} inputMode="decimal" value={borrador.tasa}
+                          onChange={(evento) => cambiar('tasa', evento.target.value.replace(',', '.').replace(/[^0-9.]/g, ''))} />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <FieldLabel htmlFor={`${titulo}-cuotas`}>Número de cuotas</FieldLabel>
+                      <input id={`${titulo}-cuotas`} className={campo} inputMode="numeric" value={borrador.cuotas}
+                        onChange={(evento) => cambiar('cuotas', evento.target.value.replace(/\D/g, ''))} />
+                    </div>
+                    <div className="min-w-0">
+                      <FieldLabel htmlFor={`${titulo}-plazo`}>Plazo (meses)</FieldLabel>
+                      {esArticulo && carga && carga.opciones.length > 0 && !bloqueo ? (
+                        <Selector id={`${titulo}-plazo`} etiqueta="Plazo (meses)" value={borrador.plazo}
+                          placeholder={borrador.plazo ? `${borrador.plazo} meses` : 'Seleccionar plazo'}
+                          opciones={carga.opciones.map((opcion) => ({ value: String(opcion.numeroCuotas),
+                            label: `${opcion.numeroCuotas} · ${formatoNumero(opcion.precioTotal)}` }))}
+                          onChange={(valor) => {
+                            const opcion = carga.opciones.find((actual) => String(actual.numeroCuotas) === valor)
+                            if (opcion) cambiarPlanArticulo(Number(valor), borrador.frecuencia, Number(opcion.precioTotal))
+                          }} />
+                      ) : (
+                        <input id={`${titulo}-plazo`} className={campo} inputMode="numeric" value={borrador.plazo}
+                          onChange={(evento) => cambiar('plazo', evento.target.value.replace(/\D/g, ''))} />
+                      )}
+                      {!esArticulo && plazoDeCalculo != null && plazoDeCalculo !== Number(borrador.plazo) &&
+                        <p className="mt-1 text-xs text-slate-600">Plazo de cálculo: {formatoPlazo.format(plazoDeCalculo)} meses</p>}
+                    </div>
+                    <div className="col-span-2 min-w-0 sm:col-span-1">
+                      <FieldLabel htmlFor={`${titulo}-frecuencia`} ayuda="frecuenciaDePago">Frecuencia de pago</FieldLabel>
+                      <Selector id={`${titulo}-frecuencia`} etiqueta="Frecuencia de pago" opciones={frecuencias}
+                        disabled={Boolean(bloqueo) || guardando} value={borrador.frecuencia}
+                        onChange={(valor) => {
+                          if (esArticulo && Number(borrador.plazo) > 0) cambiarPlanArticulo(Number(borrador.plazo), valor)
+                          else cambiar('frecuencia', valor)
+                        }} />
+                    </div>
+                    {!esArticulo && <div className="col-span-2 min-w-0 sm:col-span-1">
+                      <FieldLabel htmlFor={`${titulo}-tipo`} ayuda="tipoDeInteres">Tipo de interés</FieldLabel>
+                      <Selector id={`${titulo}-tipo`} etiqueta="Tipo de interés" opciones={amortizaciones}
+                        disabled={Boolean(bloqueo) || guardando} value={borrador.tipo}
+                        onChange={(valor) => cambiar('tipo', valor)} />
+                    </div>}
+                  </fieldset>
+                  {errorParametros && <p role="alert" className="text-sm text-rose-700">Revisa el capital, la tasa, el plazo y la cantidad de cuotas (1 a 1.000).</p>}
+                </section>
+
+                <section aria-label="Plan de cuotas">
+                  <h3 className="mb-2 text-sm font-bold text-slate-900">{cambiaCalendario ? 'Plan de cuotas proyectado' : 'Plan de cuotas registrado'}</h3>
+                  {errorPlan ? (
+                    <div className="space-y-2">
+                      <p role="alert" className="text-sm text-rose-700">{errorPlan}</p>
+                      <button type="button" className={boton} onClick={() => setIntentoSimular((actual) => actual + 1)}>Reintentar cálculo</button>
+                    </div>
+                  ) : calculando ? (
+                    <p role="status" className="flex items-center gap-2 py-3 text-sm text-slate-600"><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Calculando cuotas…</p>
+                  ) : filas.length > 0 ? (
+                    <>
+                      <div className="overflow-x-auto rounded-lg border border-slate-200">
+                        <table className="w-full min-w-[420px] text-left text-sm tabular-nums">
+                          <thead className="bg-slate-50 text-xs text-slate-700"><tr>
+                            <th scope="col" className="px-3 py-2">N°</th>
+                            <th scope="col" className="px-3 py-2">Vencimiento</th>
+                            <th scope="col" className="px-3 py-2 text-right">Capital</th>
+                            {!esArticulo && <th scope="col" className="px-3 py-2 text-right">Interés</th>}
+                            <th scope="col" className="px-3 py-2 text-right">Cuota</th>
+                          </tr></thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700">
+                            {(verPlanCompleto ? filas : filas.slice(0, 5)).map((cuota) => (
+                              <tr key={cuota.numeroCuota}>
+                                <td className="px-3 py-2">{cuota.numeroCuota}</td>
+                                <td className="px-3 py-2">{fechaCorta(cuota.fechaVencimientoProrroga ?? cuota.fechaVencimiento)}</td>
+                                <td className="whitespace-nowrap px-3 py-2 text-right">{formatoNumero(cuota.montoCapital)}</td>
+                                {!esArticulo && <td className="whitespace-nowrap px-3 py-2 text-right">{formatoNumero(cuota.montoInteres)}</td>}
+                                <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-900">{formatoNumero(cuota.monto)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {filas.length > 5 && <button type="button" className="min-h-11 text-sm font-semibold text-blue-700 hover:underline"
+                        aria-expanded={verPlanCompleto} onClick={() => setVerPlanCompleto((ver) => !ver)}>
+                        {verPlanCompleto ? 'Mostrar solo 5 cuotas' : `Ver las ${filas.length} cuotas`}
+                      </button>}
+                    </>
+                  ) : !cambiaCalendario && <p className="text-sm text-slate-600">No hay cuotas registradas.</p>}
+                </section>
+
+                <div>
+                  <FieldLabel htmlFor={`${titulo}-notas`}>Notas / observaciones</FieldLabel>
+                  <textarea id={`${titulo}-notas`} className={campo} rows={2} disabled={guardando} value={borrador.notas}
+                    onChange={(evento) => cambiar('notas', evento.target.value)} />
+                </div>
+              </>
             )}
-            {loading ? 'Actualizando...' : 'Guardar Cambios'}
-          </button>
-        </div>
+          </div>
+          <footer className={`${PIE_HOJA_MODAL} flex flex-wrap justify-end gap-2`}>
+            {errorGuardar && <p role="alert" className="w-full text-sm text-rose-700">{errorGuardar}</p>}
+            <button type="button" onClick={cerrar} disabled={guardando} className={boton}>Cancelar</button>
+            <button type="submit" disabled={!puedeGuardar} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-45">
+              {guardando ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
+              {guardando ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          </footer>
+        </form>
       </div>
     </div>,
-    document.body
-  );
+    document.body,
+  )
 }

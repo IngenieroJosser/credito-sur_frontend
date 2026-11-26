@@ -119,6 +119,10 @@ export interface Prestamo {
    * pareja, ya estaba declarado mas abajo.
    */
   cuotasVencidas?: number;
+  /** Estado para mostrar en el detalle; no es editable ni una columna. */
+  estadoEfectivo?: EstadoPrestamo;
+  /** Motivo por el cual no se puede volver a generar el calendario en la edición. */
+  motivoBloqueoPlan?: string | null;
   /** Estado de la revision del credito (columna del modelo). */
   estadoAprobacion?: string;
   /**
@@ -169,6 +173,7 @@ export interface Prestamo {
   interesMoraPagado?: number;
   moraAcumulada?: number;
   plazoMeses?: number;
+  plazoInteresMeses?: number | null;
   cuotaInicial?: number;
   montoCuota?: number;
   valorCuota?: number;

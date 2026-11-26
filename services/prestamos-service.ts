@@ -89,6 +89,32 @@ export interface ArchivoDePrestamo {
   formato?: string
 }
 
+export interface CambiosPrestamo {
+  monto?: number
+  tasaInteres?: number
+  plazoMeses?: number
+  cantidadCuotas?: number
+  frecuenciaPago?: string
+  notas?: string
+  tasaInteresMora?: number
+  cuotaInicial?: number
+  fechaInicio?: string
+  garantia?: string
+  tipoAmortizacion?: TipoAmortizacion
+  archivos?: ArchivoDePrestamo[]
+  version?: number
+}
+
+export type CuotaSimuladaEdicion = Pick<Cuota, 'numeroCuota' | 'fechaVencimiento' | 'monto' | 'montoCapital' | 'montoInteres'>
+
+export interface SimulacionEdicionPrestamo {
+  interesTotal: number
+  totalFinal: number
+  cuotaProyectada: number | null
+  plazoInteresMeses: number | null
+  cuotas: CuotaSimuladaEdicion[]
+}
+
 export interface FiltrosPrestamos {
   estado?: string
   ruta?: string
@@ -374,34 +400,8 @@ export const prestamosService = {
     return Object.assign({}, ...respuestas) as Record<string, Cuota[]>
   },
 
-  /**
-   * Simular el plan de cuotas sin guardar. El backend usa exactamente la misma
-   * fórmula que la creación, así que la vista previa del modal de edición
-   * coincide al peso con lo que se guardaría.
-   */
-  async simularPlan(payload: {
-    tipoAmortizacion?: string
-    monto: number
-    tasaInteres: number
-    cantidadCuotas: number
-    plazoMeses: number
-    frecuenciaPago: string
-    fechaInicio?: string
-    tipoPrestamo?: string
-    cuotaInicial?: number
-  }): Promise<{
-    interesTotal: number
-    totalFinal: number
-    cuotaProyectada: number
-    cuotas: Array<{
-      numeroCuota: number
-      fechaVencimiento: string
-      monto: number
-      montoCapital: number
-      montoInteres: number
-    }>
-  }> {
-    return apiRequest('POST', '/loans/simular', payload)
+  async simularEdicion(id: string, cambios: CambiosPrestamo): Promise<SimulacionEdicionPrestamo> {
+    return apiRequest('POST', `/loans/${id}/simular-edicion`, cambios)
   },
 
   /**
@@ -506,32 +506,9 @@ export const prestamosService = {
   /**
    * Actualizar un préstamo existente
    */
-  async actualizarPrestamo(
-    id: string,
-    data: {
-      monto?: number
-      tasaInteres?: number
-      plazoMeses?: number
-      cantidadCuotas?: number
-      frecuenciaPago?: string
-      estado?: string
-      notas?: string
-      tasaInteresMora?: number
-      cuotaInicial?: number
-      fechaInicio?: string
-      garantia?: string
-      tipoAmortizacion?: TipoAmortizacion
-      archivos?: ArchivoDePrestamo[]
-      /**
-       * La version cargada, para el bloqueo optimista. El DTO del backend la declara a
-       * proposito (update-loan.dto.ts:191) y el modal de editar la manda; faltaba aqui,
-       * asi que el payload tenia que ser `any` para poder incluirla.
-       */
-      version?: number
-    },
-  ): Promise<unknown> {
+  async actualizarPrestamo(id: string, data: CambiosPrestamo): Promise<Prestamo | null> {
     try {
-      return await apiRequest('PATCH', `/loans/${id}`, data)
+      return await apiRequest<Prestamo>('PATCH', `/loans/${id}`, data)
     } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de prestamo en cola...')
@@ -542,7 +519,7 @@ export const prestamosService = {
           data,
           `Actualizar préstamo ID: ${id}`,
         )
-        return { id, ...data }
+        return null
       }
       throw error
     }
