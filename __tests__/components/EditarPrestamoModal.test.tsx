@@ -42,6 +42,9 @@ it('muestra primero los importes registrados y conserva la mora al simular y gua
   render(<EditarPrestamoModal id={credito.id} onClose={jest.fn()} />)
 
   await screen.findByText('En mora')
+  expect(screen.getByText('Préstamo en efectivo')).toBeInTheDocument()
+  expect(screen.getByLabelText('Plazo (meses)')).toHaveValue('1,5')
+  expect(screen.getByText('Guardado redondeado: 2 meses')).toBeInTheDocument()
   const resumen = within(screen.getByRole('region', { name: 'Resumen financiero' }))
   const plan = within(screen.getByRole('region', { name: 'Plan de cuotas' }))
   const submit = screen.getByRole('button', { name: 'Guardar cambios' })
@@ -56,11 +59,72 @@ it('muestra primero los importes registrados y conserva la mora al simular y gua
   expect(await resumen.findByText(/^\$\s*243\.000$/)).toBeInTheDocument()
   expect(resumen.getByText(/Registrado:.*270\.000/)).toBeInTheDocument()
   expect(plan.getByText(/190\.500/)).toBeInTheDocument()
+  fireEvent.click(plan.getByRole('button', { name: /^Registrado$/ }))
+  expect(plan.getByText(/195\.000/)).toBeInTheDocument()
+  expect(plan.queryByText(/190\.500/)).not.toBeInTheDocument()
+  fireEvent.click(plan.getByRole('button', { name: /^Proyectado$/ }))
+  expect(plan.getByText(/190\.500/)).toBeInTheDocument()
   expect(simular).toHaveBeenCalledWith(credito.id, { tasaInteres: 18, version: 4 })
   expect(screen.getByText('En mora')).toBeInTheDocument()
 
   fireEvent.click(submit)
   await waitFor(() => expect(guardar).toHaveBeenCalledWith(credito.id, { tasaInteres: 18, version: 4 }))
+})
+
+it('deja escoger dos meses aunque ese sea el entero redondeado que ya estaba en la base', async () => {
+  simular.mockResolvedValue({
+    interesTotal: 360000, totalFinal: 1260000, cuotaProyectada: 210000, plazoInteresMeses: 2,
+    cuotas: [{ numeroCuota: 1, fechaVencimiento: '2026-08-08', monto: 210000, montoCapital: 150000, montoInteres: 60000 }],
+  })
+  render(<EditarPrestamoModal id={credito.id} onClose={jest.fn()} />)
+  const plazo = await screen.findByLabelText('Plazo (meses)')
+  expect(plazo).toHaveValue('1,5')
+
+  fireEvent.change(plazo, { target: { value: '2' } })
+  await waitFor(() => expect(simular).toHaveBeenCalledWith(credito.id, { plazoMeses: 2, version: 4 }))
+  const resumen = within(screen.getByRole('region', { name: 'Resumen financiero' }))
+  expect(await resumen.findByText(/^\$\s*360\.000$/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+  await waitFor(() => expect(guardar).toHaveBeenCalledWith(credito.id, { plazoMeses: 2, version: 4 }))
+})
+
+it('identifica un crédito de artículo y no ofrece condiciones de interés', async () => {
+  obtener.mockResolvedValue({ ...credito, tipoPrestamo: 'ARTICULO', cuotaInicial: 200000, interesTotal: 0 })
+  render(<EditarPrestamoModal id={credito.id} onClose={jest.fn()} />)
+
+  expect(await screen.findByText('Crédito de artículo')).toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: /^Cuota inicial \(COP\)/ })).toHaveValue('200.000')
+  expect(screen.queryByRole('combobox', { name: 'Tipo de interés' })).not.toBeInTheDocument()
+})
+
+it('marca la condición inválida y bloquea la proyección y el guardado', async () => {
+  render(<EditarPrestamoModal id={credito.id} onClose={jest.fn()} />)
+  const cuotas = await screen.findByLabelText('Número de cuotas')
+  fireEvent.change(cuotas, { target: { value: '1001' } })
+
+  expect(cuotas).toHaveAttribute('aria-invalid', 'true')
+  expect(screen.getByRole('alert')).toHaveTextContent('Ingresa entre 1 y 1.000 cuotas.')
+  expect(screen.getByText('Datos por corregir', { selector: '[role="status"]' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+  expect(simular).not.toHaveBeenCalled()
+  expect(guardar).not.toHaveBeenCalled()
+})
+
+it('ofrece solo los dos tipos vigentes y no cambia uno histórico al guardar las notas', async () => {
+  obtener.mockResolvedValue({ ...credito, tipoAmortizacion: TipoAmortizacion.FRANCESA })
+  render(<EditarPrestamoModal id={credito.id} onClose={jest.fn()} />)
+
+  const tipo = await screen.findByRole('combobox', { name: 'Tipo de interés' })
+  expect(tipo).toHaveTextContent('Francesa (histórica)')
+  fireEvent.click(tipo)
+  const opciones = await screen.findAllByRole('option')
+  expect(opciones.map((opcion) => opcion.textContent?.trim())).toEqual(['Interés Simple', 'Amortización'])
+  fireEvent.keyDown(tipo, { key: 'Escape' })
+
+  fireEvent.change(screen.getByLabelText('Notas / observaciones'), { target: { value: 'Nota histórica' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+  await waitFor(() => expect(guardar).toHaveBeenCalledWith(credito.id, { notas: 'Nota histórica', version: 4 }))
+  expect(simular).not.toHaveBeenCalled()
 })
 
 it('permite cambiar notas sin proyectar ni modificar las condiciones de un crédito con pagos', async () => {
