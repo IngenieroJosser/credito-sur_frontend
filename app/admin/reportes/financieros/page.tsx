@@ -1,4 +1,6 @@
 'use client'
+import AvisoActualizando from '@/components/ui/AvisoActualizando'
+import type { TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import { formatFechaBogota } from '@/lib/format-date'
 
 import React, { useState, useEffect, useCallback } from 'react'
@@ -97,6 +99,16 @@ const ReportesFinancierosPage = () => {
   const pathname = usePathname()
   const [periodo, setPeriodo] = useState<FinancialPeriod>('DIARIO')
   const [loading, setLoading] = useState(true)
+  /*
+   * Si ya se cargo alguna vez.
+   *
+   * Sin esto, `if (loading)` sustituia la pantalla ENTERA por el esqueleto en
+   * cada cambio de periodo. Lo reporto el dueño: «al usar sem, mes o año...
+   * en reportes financieros si necesito que corrijas eso». El esqueleto es
+   * para la primera carga, cuando de verdad no hay nada que enseñar; al
+   * cambiar de periodo lo que hay se queda, atenuado y con un aviso.
+   */
+  const [huboCarga, setHuboCarga] = useState(false)
   const [mounted, setMounted] = useState(false)
   
   const [summary, setSummary] = useState<FinancialSummary>({
@@ -505,6 +517,7 @@ const ReportesFinancierosPage = () => {
       console.error('Error fetching financial reports:', error)
     } finally {
       setLoading(false)
+      setHuboCarga(true)
     }
   }, [periodo])
 
@@ -523,7 +536,7 @@ const ReportesFinancierosPage = () => {
     return null;
   }
 
-  if (loading) {
+  if (loading && !huboCarga) {
     return (
       <div className="space-y-4 p-4 sm:p-6" aria-busy="true">
         <span className="sr-only">Cargando reportes financieros…</span>
@@ -538,8 +551,25 @@ const ReportesFinancierosPage = () => {
     )
   }
 
+  /*
+   * El periodo financiero y el del selector comun son el mismo concepto con
+   * dos nombres. Se traduce aqui para reusar `AvisoActualizando` tal cual, en
+   * vez de ensanchar su API por una pantalla.
+   */
+  const PERIODO_PARA_AVISO: Record<FinancialPeriod, TimeFilterPeriod> = {
+    DIARIO: 'today',
+    SEMANAL: 'week',
+    MENSUAL: 'month',
+    ANUAL: 'year',
+  }
+
+  const actualizando = loading && huboCarga
+
   return (
     <div className="min-h-screen bg-slate-50 relative">
+      {actualizando ? (
+        <AvisoActualizando periodo={PERIODO_PARA_AVISO[periodo]} />
+      ) : null}
       {/* Fondo arquitectónico standard */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>

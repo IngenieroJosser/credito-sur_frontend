@@ -49,6 +49,7 @@ const leer = (...partes: string[]) =>
 const ADMIN = leer('app', 'admin', 'page.tsx')
 const COORDINADOR = leer('app', 'coordinador', 'page.tsx')
 const AVISO = leer('components', 'ui', 'AvisoActualizando.tsx')
+const FINANCIEROS = leer('app', 'admin', 'reportes', 'financieros', 'page.tsx')
 
 describe('los dos paneles conservan lo que hay al cambiar de periodo', () => {
   it.each([
@@ -60,6 +61,27 @@ describe('los dos paneles conservan lo que hay al cambiar de periodo', () => {
 
     expect(fuente).toMatch(/actualizando: !!prev\.dashboardData/)
     expect(fuente).toMatch(/AvisoActualizando/)
+  })
+
+  /*
+   * ── La tercera, encontrada despues ──────────────────────────────────────
+   *
+   * Aquella medicion dijo «de las ocho vistas con selector de periodo, solo
+   * dos tenian problema». Faltaba una, y el dueño la encontro usandola:
+   * reportes financieros. No aparecio porque su defecto es OTRO —no vacia el
+   * estado, hace `if (loading) return <esqueleto>` sin mirar si ya hay
+   * datos—, asi que el barrido de `dashboardData: null` no podia verlo.
+   *
+   * El efecto para quien mira es el mismo: la pantalla entera desaparece al
+   * tocar «Mes».
+   */
+  it('reportes financieros guarda el esqueleto para la PRIMERA carga', () => {
+    expect(FINANCIEROS.length).toBeGreaterThan(5_000)
+
+    // El esqueleto solo cuando no hay nada que enseñar todavia.
+    expect(FINANCIEROS).toMatch(/if \(loading && !huboCarga\)/)
+    // Y mientras cambia de periodo, el aviso en vez del vacio.
+    expect(FINANCIEROS).toMatch(/AvisoActualizando/)
   })
 
   it('el de admin ya no borra los datos al recargar por periodo', () => {

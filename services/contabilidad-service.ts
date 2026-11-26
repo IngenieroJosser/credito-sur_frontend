@@ -481,7 +481,7 @@ export async function getMovimientosLedger(filtros?: {
   fechaFin?: string
   page?: number
   limit?: number
-}): Promise<PaginatedResponse<MovimientoLedger>> {
+}, opciones?: { propagarError?: boolean }): Promise<PaginatedResponse<MovimientoLedger>> {
   try {
     const params = new URLSearchParams()
     if (filtros?.tipo) params.append('tipo', filtros.tipo)
@@ -499,6 +499,7 @@ export async function getMovimientosLedger(filtros?: {
       `/accounting/ledger/movimientos${queryString ? `?${queryString}` : ''}`,
     )
   } catch (error) {
+    if (opciones?.propagarError) throw error
     console.error('Error fetching ledger movimientos:', error)
     return { data: [], meta: { total: 0, page: 1, limit: 50, totalPages: 0 } }
   }

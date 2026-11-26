@@ -4,6 +4,7 @@ import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
 import { avisoDeCifraIncompleta } from '@/lib/contable/cifras-completas'
+import { formatearImportesEnConcepto } from '@/lib/contable/importes-en-concepto'
 
 /**
  * ============================================================================
@@ -306,24 +307,29 @@ const formatFechaOperativaRuta = (fecha?: string | null) => {
 
 const mapMovimientoLedgerResultado = (m: ApiMovimientoLedger, tipoResultado: 'INGRESO' | 'EGRESO'): MovimientoContable => {
   const prefix = tipoResultado === 'INGRESO' ? '3.' : '4.'
-  const montoResultado = (m.lineas || [])
-    .filter((linea) => {
-      const accountCode = String(linea.accountCode || '')
-      if (tipoResultado === 'INGRESO' && accountCode.startsWith('3.4')) return false
-      return accountCode.startsWith(prefix)
-    })
-    .reduce((acc, linea) => {
-      const debito = Number(linea.debitAmount || 0)
-      const credito = Number(linea.creditAmount || 0)
-      return acc + (tipoResultado === 'INGRESO' ? credito - debito : debito - credito)
-    }, 0)
+  const lineasResultado = (m.lineas || []).filter((linea) =>
+    linea.accountCode.startsWith(prefix) &&
+    (tipoResultado !== 'INGRESO' || !linea.accountCode.startsWith('3.4')),
+  )
+  const montoResultado = lineasResultado.reduce((acc, linea) => {
+    const debito = Number(linea.debitAmount || 0)
+    const credito = Number(linea.creditAmount || 0)
+    return acc + (tipoResultado === 'INGRESO' ? credito - debito : debito - credito)
+  }, 0)
+  const cuentaResultado = lineasResultado.find((linea) =>
+    tipoResultado === 'INGRESO'
+      ? Number(linea.creditAmount) > Number(linea.debitAmount)
+      : Number(linea.debitAmount) > Number(linea.creditAmount),
+  ) ?? lineasResultado[0]
   const base = mapMovimientoLedger(m)
 
   return {
     ...base,
     tipo: tipoResultado,
     monto: Math.max(0, montoResultado),
-    categoria: base.accountName || base.categoria,
+    accountCode: cuentaResultado?.accountCode,
+    accountName: cuentaResultado?.accountName,
+    categoria: cuentaResultado?.accountName || base.categoria,
     tipoReferencia: m.tipo,
   }
 }
@@ -350,7 +356,7 @@ const esRecepcionConsolidacion = (m: Pick<MovimientoContable, 'tipo' | 'tipoRefe
 }
 
 const normalizarConceptoContable = (concepto: string, movimiento?: MovimientoContable | null) => {
-  const limpio = String(concepto || '')
+  const limpio = formatearImportesEnConcepto(String(concepto || ''))
     .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
     .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
     .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
@@ -614,34 +620,17 @@ const ModuloContableContent = () => {
   }
 
   // Carga movimientos globales filtrados por tipo para el historial sin filtro de caja
-  const loadMovimientosGlobalPorTipo = async (tipo: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA', fechaInicio?: string, fechaFin?: string) => {
-    try {
-      if (tipo === 'INGRESO' || tipo === 'EGRESO') {
-        const resp = await getMovimientosLedger({
-          accountPrefix: tipo === 'INGRESO' ? '3.' : '4.',
-          fechaInicio,
-          fechaFin,
-          limit: 500,
-        })
-        setMovimientosModalGlobal(
-          Array.isArray(resp?.data)
-            ? ocultarPagosClientePanelContable(resp.data).map((m) => mapMovimientoLedgerResultado(m, tipo))
-            : [],
-        )
-        return
-      }
-
-      const params: Parameters<typeof getTransacciones>[0] = { tipo, limit: 500 }
-      if (fechaInicio) params.fechaInicio = fechaInicio
-      if (fechaFin) params.fechaFin = fechaFin
-      const resp = await getTransacciones(params)
-      if (resp && Array.isArray(resp.data)) {
-        setMovimientosModalGlobal(listaDeRespuesta(resp).map(mapTransaccion))
-      } else {
-        setMovimientosModalGlobal([])
-      }
-    } catch {
-      setMovimientosModalGlobal([])
+  const loadMovimientosGlobalPorTipo = async (tipo: 'INGRESO' | 'EGRESO', fechaInicio?: string, fechaFin?: string) => {
+    const resp = await getMovimientosLedger({
+      accountPrefix: tipo === 'INGRESO' ? '3.' : '4.',
+      fechaInicio,
+      fechaFin,
+      limit: 500,
+    }, { propagarError: true })
+    const asientos = tipo === 'INGRESO' ? resp.data : ocultarPagosClientePanelContable(resp.data)
+    return {
+      movimientos: asientos.map((m) => mapMovimientoLedgerResultado(m, tipo)),
+      aviso: avisoDeCifraIncompleta(resp),
     }
   }
 
@@ -748,6 +737,7 @@ const ModuloContableContent = () => {
   const [movimientosDetalle, setMovimientosDetalle] = useState<MovimientoContable[]>([])
   // Movimientos globales filtrados por tipo (para el historial de ingresos/egresos sin caja seleccionada)
   const [movimientosModalGlobal, setMovimientosModalGlobal] = useState<MovimientoContable[]>([])
+  const [estadoHistorial, setEstadoHistorial] = useState<{ cargando?: boolean; error?: boolean; aviso?: string | null }>({})
 
   // --- CARGA DE DATOS (REUSABLE) ---
   const fetchData = async () => {
@@ -797,8 +787,9 @@ const ModuloContableContent = () => {
         limit: 1000,
       }).catch(() => null)
       const ingresosPanelContable = Array.isArray(ingresosPanelResp?.data)
-        ? ocultarPagosClientePanelContable(ingresosPanelResp.data)
+        ? ingresosPanelResp.data
             .map((m) => mapMovimientoLedgerResultado(m, 'INGRESO'))
+            .filter(esIngresoContableGeneral)
             .reduce((sum, m) => sum + Number(m.monto || 0), 0)
         : Number(resumen?.ingresosHoy || 0)
       if (resumen) {
@@ -866,10 +857,22 @@ const ModuloContableContent = () => {
   // Cargar movimientos globales por tipo cuando se abre el modal de historial
   useEffect(() => {
     if (showDetalleModal && !cajaSeleccionada) {
-      if (detalleTipo === 'INGRESOS') {
-        loadMovimientosGlobalPorTipo('INGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
-      } else if (detalleTipo === 'EGRESOS') {
-        loadMovimientosGlobalPorTipo('EGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
+      if (detalleTipo === 'INGRESOS' || detalleTipo === 'EGRESOS') {
+        let vigente = true
+        setEstadoHistorial({ cargando: true })
+        setMovimientosModalGlobal([])
+        void loadMovimientosGlobalPorTipo(
+          detalleTipo === 'INGRESOS' ? 'INGRESO' : 'EGRESO',
+          fechaInicioModal || undefined,
+          fechaFinModal || undefined,
+        ).then(({ movimientos, aviso }) => {
+          if (!vigente) return
+          setMovimientosModalGlobal(movimientos)
+          setEstadoHistorial({ aviso })
+        }).catch(() => {
+          if (vigente) setEstadoHistorial({ error: true })
+        })
+        return () => { vigente = false }
       } else if (detalleTipo === 'CUOTAS_INICIALES') {
         loadCuotasInicialesGlobal(fechaInicioModal || undefined, fechaFinModal || undefined)
       } else if (detalleTipo === 'UTILIDAD') {
@@ -881,6 +884,8 @@ const ModuloContableContent = () => {
       setDetalleCajaFocus(null)
     }
   }, [detalleTipo, showDetalleModal, fechaInicioModal, fechaFinModal, cajaSeleccionada])
+
+  const historialDeResultados = !cajaSeleccionada && (detalleTipo === 'INGRESOS' || detalleTipo === 'EGRESOS')
 
   // Modal de caja: al cambiar fechas, recargar transacciones de esa caja.
   useEffect(() => {
@@ -1628,6 +1633,7 @@ const ModuloContableContent = () => {
                       }
                     }
 
+                    const conceptoMostrado = conceptoLimpio || formatearImportesEnConcepto(m.concepto || '')
                     const tipoBadge = etiqueta.label;
 
                     return (
@@ -1652,8 +1658,8 @@ const ModuloContableContent = () => {
                         </td>
                         <td className="px-4 py-2 align-middle">
                           <div className="flex flex-col">
-                            <Tooltip texto={(conceptoLimpio || m.concepto) || ''}><span className="text-xs font-bold text-slate-900 truncate max-w-[200px]">
-                              {String(conceptoLimpio || m.concepto).replace(/\$(\d+)/g, (match, p1) => formatCurrency(Number(p1)))}
+                            <Tooltip texto={conceptoMostrado}><span className="text-xs font-bold text-slate-900 truncate max-w-[200px]">
+                              {conceptoMostrado}
                             </span></Tooltip>
                             {(m.referencia || m.referenciaId) && (
                               <span className="text-[10px] text-slate-400 font-medium">
@@ -3039,6 +3045,9 @@ const ModuloContableContent = () => {
               {/* Modal Content */}
               <div className="p-6 overflow-y-auto custom-scrollbar">
                   <div className="space-y-6">
+                    {historialDeResultados && estadoHistorial.aviso && (
+                      <p role="status" className="text-sm text-amber-800">{estadoHistorial.aviso}</p>
+                    )}
                     {/* Resumen Total Header */}
                     {detalleTipo === 'CIERRES' ? (
                         <div className="rounded-xl border p-5 flex justify-between items-center transition-colors shadow-sm border-orange-100 bg-orange-50/50">
@@ -3113,6 +3122,8 @@ const ModuloContableContent = () => {
                                        : "text-indigo-800"
                                )}>
                                  {(() => {
+                                    if (historialDeResultados && estadoHistorial.cargando) return 'Consultando…'
+                                    if (historialDeResultados && estadoHistorial.error) return 'No disponible'
                                     const hoyKey = getBogotaDateKey(new Date())
                                     const source = cajaSeleccionada ? movimientosDetalle : movimientosModalGlobal
                                     const filtered = source
@@ -3359,7 +3370,9 @@ const ModuloContableContent = () => {
                                  : 'Historial de Movimientos'}
                            </h4>
                            <span className="text-xs font-medium text-slate-400">
-                              {detalleTipo === 'CIERRES'
+                              {historialDeResultados && (estadoHistorial.cargando || estadoHistorial.error)
+                                 ? '—'
+                                 : detalleTipo === 'CIERRES'
                                  ? historialCierres.length
                                  : detalleTipo === 'CIERRES_RUTA'
                                    ? (() => {
@@ -3549,6 +3562,10 @@ const ModuloContableContent = () => {
                              })
                            })()}
                          </div>
+                       ) : historialDeResultados && estadoHistorial.cargando ? (
+                         <p role="status" className="py-4 text-sm text-slate-600">Consultando movimientos…</p>
+                       ) : historialDeResultados && estadoHistorial.error ? (
+                         <p role="alert" className="py-4 text-sm text-red-700">No se pudo cargar el historial de movimientos.</p>
                        ) : (
                          <>
                           {(cajaSeleccionada ? movimientosDetalle : movimientosModalGlobal)
