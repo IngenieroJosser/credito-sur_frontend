@@ -49,6 +49,7 @@ const leer = (...partes: string[]) =>
 const ADMIN = leer('app', 'admin', 'page.tsx')
 const COORDINADOR = leer('app', 'coordinador', 'page.tsx')
 const AVISO = leer('components', 'ui', 'AvisoActualizando.tsx')
+const DASHBOARD_CLIENT = leer('app', 'admin', 'dashboard-client.tsx')
 const FINANCIEROS = leer('app', 'admin', 'reportes', 'financieros', 'page.tsx')
 
 describe('los dos paneles conservan lo que hay al cambiar de periodo', () => {
@@ -105,9 +106,13 @@ describe('los dos paneles conservan lo que hay al cambiar de periodo', () => {
      * se conservan, pero no se presentan como los nuevos.
      */
     for (const fuente of [ADMIN, COORDINADOR]) {
-      expect(fuente).toMatch(/pointer-events-none opacity-60/)
-      expect(fuente).toMatch(/aria-busy=\{state\.actualizando\}/)
+      expect(fuente).toMatch(/bloqueado=\{state\.actualizando \|\| !!state\.errorCarga\}/)
     }
+  })
+
+  it('el bloqueo no incluye el selector de período', () => {
+    expect(DASHBOARD_CLIENT).toMatch(/aria-busy=\{actualizando\} inert=\{bloqueado\}/)
+    expect(DASHBOARD_CLIENT.indexOf('<TimeFilter')).toBeLessThan(DASHBOARD_CLIENT.indexOf('inert={bloqueado}'))
   })
 
   it('el esqueleto se reserva para la primera carga', () => {

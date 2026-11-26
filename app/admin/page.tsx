@@ -476,6 +476,7 @@ export default function DashboardPage() {
           actualizando: false
         });
       } catch (error) {
+        if (!isMounted || activePeriodRef.current !== requestedPeriod || requestId !== requestCounterRef.current) return;
         console.error('Error cargando dashboard:', error);
         if (estadoDeError(error) === 401 || estadoDeError(error) === 401) {
           localStorage.removeItem('token');
@@ -504,7 +505,8 @@ export default function DashboardPage() {
 
   // Función liviana de refresco para eventos RT (no resetea dashboardData, evita parpadeos)
   const refreshDashboard = useCallback(async () => {
-    if (!state.userData) return
+    if (!state.userData || state.actualizando || state.errorCarga) return
+    const solicitud = requestCounterRef.current
     try {
       const { fechaInicio, fechaFin } = calculateDatesFromPeriod(period)
       const [backendData, resumenFinanciero] = await Promise.allSettled([
@@ -526,14 +528,15 @@ export default function DashboardPage() {
       ]
       const chartData = (dashboard?.trend || []).map((t) => ({ label: t.label, value: t.value }))
       const topCollectors = (dashboard?.topCollectors || []).map(c => ({ name: c.name, collected: c.collected, efficiency: c.efficiency, trend: c.trend }))
-      setState(prev => prev.dashboardData ? ({
+      if (solicitud !== requestCounterRef.current || activePeriodRef.current !== period) return
+      setState(prev => prev.dashboardData && !prev.actualizando ? ({
         ...prev,
         dashboardData: { ...prev.dashboardData, mainMetrics, chartData, topCollectors }
       }) : prev)
     } catch {
       // Silencioso: el refresco RT no debe interrumpir la vista actual
     }
-  }, [state.userData, period])
+  }, [state.userData, state.actualizando, state.errorCarga, period])
 
   useRealtimeData(
     ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados'],
@@ -594,19 +597,12 @@ export default function DashboardPage() {
           onReintentar={() => setIntentoDeCarga((n) => n + 1)}
         />
       ) : null}
-      <div
-        className={
-          state.actualizando
-            ? 'pointer-events-none opacity-60 transition-opacity'
-            : 'transition-opacity'
-        }
-        aria-busy={state.actualizando}
-      >
-        <DashboardClient
-          data={state.dashboardData}
-          onDatosCambiados={() => { void refreshDashboard() }}
-        />
-      </div>
+      <DashboardClient
+        data={state.dashboardData}
+        actualizando={state.actualizando}
+        bloqueado={state.actualizando || !!state.errorCarga}
+        onDatosCambiados={refreshDashboard}
+      />
     </div>
   );
 }

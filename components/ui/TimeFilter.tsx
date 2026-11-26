@@ -40,6 +40,9 @@ export function TimeFilter({ activePeriod, onPeriodChange, className = '' }: Tim
         {periods.map((period) => (
           <button
             key={period.id}
+            type="button"
+            aria-label={period.fullLabel}
+            aria-pressed={activePeriod === period.id}
             onClick={() => onPeriodChange(period.id)}
             className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
               activePeriod === period.id
@@ -57,6 +60,8 @@ export function TimeFilter({ activePeriod, onPeriodChange, className = '' }: Tim
         {periods.map((period) => (
           <button
             key={period.id}
+            type="button"
+            aria-pressed={activePeriod === period.id}
             onClick={() => onPeriodChange(period.id)}
             className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap transition-all ${
               activePeriod === period.id

@@ -161,6 +161,7 @@ import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 
 import RutaKpiSection from '@/components/dashboards/shared/RutaKpiSection'
+import { usePeriodoKpiRuta } from '@/hooks/usePeriodoKpiRuta'
 import SundayNoticeBanner from '@/components/rutas/SundayNoticeBanner'
 
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
@@ -416,12 +417,8 @@ const VistaCobrador = () => {
 
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoDeFiltro>(PERIODO_POR_DEFECTO)
 
-  const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
-  // Ref para evitar stale closures en useCallback que no tienen periodoCards en sus deps
-  const periodoCardsRef = useRef<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
-  useEffect(() => {
-    periodoCardsRef.current = periodoCards
-  }, [periodoCards])
+  const { periodo: periodoCards, periodoCargado, cambiarPeriodo: setPeriodoCards, iniciarConsulta: iniciarConsultaKpi,
+    leerPeriodo: leerPeriodoKpi, puedeActualizarHoy, error: errorKpi } = usePeriodoKpiRuta()
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -636,10 +633,13 @@ const VistaCobrador = () => {
 
   const cargarEstadisticasRuta = useCallback(
     async (rutaId: string) => {
+      const consulta = iniciarConsultaKpi()
+      if (!consulta) return
+      const { periodo: periodoCards } = consulta
       try {
         const { inicio, fin } = getDatesByPeriod(periodoCards)
-
         const saldo = await obtenerSaldoDisponibleRuta(rutaId, undefined, inicio, fin)
+        if (!consulta.vigente()) return
 
         setRutaStats((prev) => ({
           ...prev,
@@ -668,11 +668,12 @@ const VistaCobrador = () => {
                     : prev.eficiencia
                 })(),
         }))
+        consulta.confirmar()
       } catch (error) {
-        console.error('Error al cargar estadísticas por periodo:', error)
+        consulta.fallar(error)
       }
     },
-    [periodoCards, rutaActual?.id],
+    [getDatesByPeriod, iniciarConsultaKpi],
   )
 
   // Recargar estadísticas cuando cambie el periodo o la ruta
@@ -1155,124 +1156,22 @@ const VistaCobrador = () => {
 
         setRutaActual(rutaCompletaAutoritativa)
 
-        // 3. Actualizar estadísticas con datos reales del backend
-
-        // 3. Actualizar estadísticas con datos reales del backend
-        const est = estadisticasAutoritativas
-        // DEFECTO-D FIX: Usar periodoCardsRef en lugar de periodoCards para evitar stale closures
-        // dado que cargarDatosRuta no tiene a periodoCards en sus deps.
-        const { inicio: cardInicio, fin: cardFin } = getDatesByPeriod(periodoCardsRef.current)
-        let saldo: Awaited<ReturnType<typeof obtenerSaldoDisponibleRuta>> | null = null
-
-        try {
-          saldo = await obtenerSaldoDisponibleRuta(rutaCompleta.id, undefined, cardInicio, cardFin)
-
-          if (periodoCardsRef.current === 'HOY' && dailyVisits) {
-            // Usar el helper compartido con la variable local (actualizada de inmediato)
-            const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisits)
-            setRutaStats((prev) => ({
-              ...prev,
-              recaudo: dailySummary.recaudo,
-              meta: dailySummary.meta,
-              eficiencia: dailySummary.efectividad,
-              pendientes: dailySummary.pendiente,
-              visitados: dailySummary.visitados,
-              totalVisitas: dailySummary.total,
-              gastos: Number(saldo?.gastosDelDia ?? 0),
-              base: Number(
-                // El `?? saldo?.saldo` que cerraba esta cascada era un respaldo MUERTO:
-                // `SaldoDisponibleRuta` no tiene `saldo` (contabilidad-service.ts:196-212),
-                // asi que valia `undefined` siempre. Los tres de arriba si existen.
-                saldo?.saldoCaja ?? saldo?.baseEfectivo ?? saldo?.saldoDisponible ?? 0,
-              ),
-            }))
-          } else if (periodoCardsRef.current === 'HOY') {
-            // Si no hay dailyVisits, intentar con el state (fallback)
-            const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisitsHoy)
-            setRutaStats((prev) => ({
-              ...prev,
-              recaudo: dailySummary.recaudo,
-              meta: dailySummary.meta,
-              eficiencia: dailySummary.efectividad,
-              pendientes: dailySummary.pendiente,
-              visitados: dailySummary.visitados,
-              totalVisitas: dailySummary.total,
-              gastos: Number(saldo?.gastosDelDia ?? 0),
-              base: Number(
-                // El `?? saldo?.saldo` que cerraba esta cascada era un respaldo MUERTO:
-                // `SaldoDisponibleRuta` no tiene `saldo` (contabilidad-service.ts:196-212),
-                // asi que valia `undefined` siempre. Los tres de arriba si existen.
-                saldo?.saldoCaja ?? saldo?.baseEfectivo ?? saldo?.saldoDisponible ?? 0,
-              ),
-            }))
-          } else {
-            // Para otros periodos: keep original behavior
-            setRutaStats((prev) => ({
-              ...prev,
-              recaudo: Number(
-                saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? est.cobranzaDelDia ?? 0,
-              ),
-              meta: est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0),
-              eficiencia:
-                est.metaDelDia > 0
-                  ? Math.round(
-                      (Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) /
-                        est.metaDelDia) *
-                        100,
-                    )
-                  : Number(est.avanceDiario ?? 0),
-              gastos: Number(saldo?.gastosDelDia ?? 0),
-              base: Number(
-                // El `?? saldo?.saldo` que cerraba esta cascada era un respaldo MUERTO:
-                // `SaldoDisponibleRuta` no tiene `saldo` (contabilidad-service.ts:196-212),
-                // asi que valia `undefined` siempre. Los tres de arriba si existen.
-                saldo?.saldoCaja ?? saldo?.baseEfectivo ?? saldo?.saldoDisponible ?? 0,
-              ),
-            }))
-          }
-        } catch (errSaldo) {
-          console.error('Error al obtener saldo de la ruta:', errSaldo)
-
-          if (periodoCardsRef.current === 'HOY' && dailyVisits) {
-            const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisits)
-            setRutaStats((prev) => ({
-              ...prev,
-              recaudo: dailySummary.recaudo,
-              meta: dailySummary.meta,
-              eficiencia: dailySummary.efectividad,
-              pendientes: dailySummary.pendiente,
-              visitados: dailySummary.visitados,
-              totalVisitas: dailySummary.total,
-              gastos: 0,
-              base: 0,
-            }))
-          } else if (periodoCardsRef.current === 'HOY') {
-            const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisitsHoy)
-            setRutaStats((prev) => ({
-              ...prev,
-              recaudo: dailySummary.recaudo,
-              meta: dailySummary.meta,
-              eficiencia: dailySummary.efectividad,
-              pendientes: dailySummary.pendiente,
-              visitados: dailySummary.visitados,
-              totalVisitas: dailySummary.total,
-              gastos: 0,
-              base: 0,
-            }))
-          } else {
-            setRutaStats((prev) => ({
-              ...prev,
-              recaudo: Number(est.cobranzaDelDia ?? 0),
-              meta: est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0),
-              eficiencia: Number(est.avanceDiario ?? 0),
-              gastos: 0,
-              base: 0,
-            }))
-          }
+        // La consulta de saldo por período vive en cargarEstadisticasRuta.
+        if (puedeActualizarHoy()) {
+          const resumenHoy = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisits ?? dailyVisitsHoy)
+          setRutaStats((prev) => ({
+            ...prev,
+            recaudo: resumenHoy.recaudo,
+            meta: resumenHoy.meta,
+            eficiencia: resumenHoy.efectividad,
+            pendientes: resumenHoy.pendiente,
+            visitados: resumenHoy.visitados,
+            totalVisitas: resumenHoy.total,
+          }))
         }
 
         // 4. Construir visitas. Si es HOY y tenemos dailyVisits, usarlo como fuente principal (usando obligaciones)
-        if (periodoCardsRef.current === 'HOY' && dailyVisits) {
+        if (leerPeriodoKpi() === 'HOY' && dailyVisits) {
           try {
             // La ruta del dia la arma `buildRutaHoyOperativa`, el mismo helper que
             // usan SupervisorCobroView, ruta-client y RutasPageView. Aqui habia una
@@ -1314,7 +1213,7 @@ const VistaCobrador = () => {
             }, 0)
 
             // Recalcular KPI del cobrador con la lista para KPI
-            setRutaStats((prev) => ({
+            if (puedeActualizarHoy()) setRutaStats((prev) => ({
               ...prev,
               recaudo: recaudoHoy,
               meta: metaHoy,
@@ -1401,7 +1300,7 @@ const VistaCobrador = () => {
 
         visitasMapeadasDedupe = ordenarVisitasRutaActual(visitasMapeadasDedupe)
 
-        if (periodoCardsRef.current === 'HOY') {
+        if (puedeActualizarHoy()) {
           const metaFallback = (Array.isArray(visitasMapeadasDedupe) ? visitasMapeadasDedupe : [])
             .filter((v) => {
               const estadoRaw = String(v?.estado || '')
@@ -1758,7 +1657,7 @@ const VistaCobrador = () => {
 
             const totalMora = visitasOffline.filter((v) => v.estado === 'en_mora').length
 
-            setRutaStats({
+            if (puedeActualizarHoy()) setRutaStats({
               recaudo: 0,
 
               meta: visitasOffline.reduce((sum, v) => sum + v.montoCuota, 0),
@@ -2289,7 +2188,7 @@ const VistaCobrador = () => {
   }, [visitasBase, ajustarEstadoConPago, hoyBogotaKey])
 
   const rutaStatsUI = useMemo(() => {
-    if (periodoCards !== 'HOY') return rutaStats
+    if (periodoCargado !== 'HOY') return rutaStats
 
     const recaudo = Number(kpisHoy.recaudo || 0)
     const meta = Number(kpisHoy.meta || 0)
@@ -2303,7 +2202,7 @@ const VistaCobrador = () => {
       pendientes: Math.max(0, meta - recaudo),
       totalVisitas: kpisHoy.visitasOperativasHoy.length,
     }
-  }, [periodoCards, rutaStats, kpisHoy])
+  }, [periodoCargado, rutaStats, kpisHoy])
 
   // BUG-08 FIX: filtrar por el ID real del cobrador en sesión, no por 'CB-001' hardcodeado.
   const operacionesCobrador = useMemo(
@@ -3329,7 +3228,10 @@ const VistaCobrador = () => {
 
         <RutaKpiSection
           periodo={periodoCards}
+          periodoCargado={periodoCargado}
           onPeriodoChange={setPeriodoCards}
+          error={errorKpi}
+          recargar={() => { if (rutaActual?.id) void cargarEstadisticasRuta(rutaActual.id) }}
           rutaStats={rutaStatsUI}
         />
 

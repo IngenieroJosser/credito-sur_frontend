@@ -109,6 +109,7 @@ import BaseModal from '@/components/dashboards/shared/BaseModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 
 import RutaKpiSection from '@/components/dashboards/shared/RutaKpiSection'
+import { usePeriodoKpiRuta, type PeriodoKpiRuta } from '@/hooks/usePeriodoKpiRuta'
 
 
 import {
@@ -139,7 +140,6 @@ import { useNotificaciones } from '@/components/providers/NotificacionesProvider
 import {
   buildRegularizedPaymentTarget,
   computeRutaHoyUiStatsFromVisitas,
-  resolveRutaHoyKpiStats,
   esDomingoBogota,
   getBogotaDateKey,
   getBogotaRangeByPeriod,
@@ -710,7 +710,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const isReadOnly = false  // El supervisor/admin siempre puede registrar pagos
 
 
-  const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
+  const { periodo: periodoCards, periodoCargado, cambiarPeriodo, iniciarConsulta: iniciarConsultaKpi,
+    puedeActualizarHoy, error: errorKpi } = usePeriodoKpiRuta()
 
 
   const [rutaStats, setRutaStats] = useState<{
@@ -746,8 +747,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   };
 
   const cargarEstadisticasRuta = useCallback(async () => {
-    if (!rutaId) return {} as Record<string, number>
-
+    if (!rutaId) return
+    const consulta = iniciarConsultaKpi()
+    if (!consulta) return
+    const { periodo: periodoCards } = consulta
     const { inicio: cardInicio, fin: cardFin } = getDatesByPeriod(periodoCards)
 
     try {
@@ -759,65 +762,35 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         ? await obtenerSaldoCajaSupervisor(userSession.id, undefined, cardInicio, cardFin)
         : await obtenerSaldoDisponibleRuta(rutaId as string, undefined, cardInicio, cardFin)
 
-      const recaudoBackend = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0)
+      if (!consulta.vigente()) return
+      const visitas = visitasBaseRef.current.filter((visita) => !shouldExcludeVisitaFromOperationalMeta(visita))
+      const statsHoy = computeRutaHoyUiStatsFromVisitas(visitas, 0)
+      const recaudo = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? (periodoCards === 'HOY' ? statsHoy.recaudo : 0))
+      const meta = statsHoy.meta
 
-      setRutaStats((prev) => {
-        if (periodoCards === 'HOY') {
-          const recaudo = Number(
-            saldo?.cobranzaDelDia ??
-            saldo?.recaudoDelDia ??
-            prev.recaudo ??
-            0,
-          )
-          const meta = Number(prev.meta ?? 0)
-          return {
-            ...prev,
-            recaudo,
-            eficiencia: meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : prev.eficiencia,
-            pendiente: Math.max(0, meta - recaudo),
-            pendientes: Math.max(0, meta - recaudo),
-            gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
-            gastosProvisionales: Number((saldo)?.egresosProvisionales ?? prev.gastosProvisionales ?? 0),
-            base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
-          }
-        }
-        // Lógica original para SEM / MES / AÑO
-        const isAusente = shouldExcludeVisitaFromOperationalMeta
-        const visitasActuales = visitasBaseRef.current
-        const hasVisitasActuales = Array.isArray(visitasActuales) && visitasActuales.length > 0
-        const visitasParaMeta = Array.isArray(visitasActuales)
-          ? visitasActuales.filter((v) => !isAusente(v))
-          : []
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
-        const statsAutoritativas = {
-          meta: Number(statsHoy.meta || 0),
-          recaudo: recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0),
-          eficiencia: Number(prev.eficiencia ?? 0),
-        }
-        const eficiencia = statsAutoritativas.meta > 0
-          ? Number(((statsAutoritativas.recaudo / statsAutoritativas.meta) * 100).toFixed(1))
-          : Number(prev.eficiencia ?? 0)
-        const shouldUpdateOperationalKpis =
-          hasVisitasActuales ||
-          recaudoBackend > 0 ||
-          Number(prev.meta ?? 0) > 0 ||
-          Number(prev.recaudo ?? 0) > 0
-        return {
-          ...prev,
-          recaudo: shouldUpdateOperationalKpis ? statsAutoritativas.recaudo : prev.recaudo,
-          meta: shouldUpdateOperationalKpis ? statsAutoritativas.meta : prev.meta,
-          eficiencia: shouldUpdateOperationalKpis ? eficiencia : prev.eficiencia,
-          gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
-          gastosProvisionales: Number((saldo)?.egresosProvisionales ?? prev.gastosProvisionales ?? 0),
-          base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
-        }
-      })
+      setRutaStats((prev) => ({
+        ...prev,
+        recaudo,
+        meta,
+        eficiencia: meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : 0,
+        pendiente: periodoCards === 'HOY' ? Math.max(0, meta - recaudo) : undefined,
+        pendientes: Math.max(0, meta - recaudo),
+        gastos: Number(saldo?.gastosDelDia ?? 0),
+        gastosProvisionales: Number(saldo?.egresosProvisionales ?? 0),
+        base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
+      }))
 
-      return (saldo?.recaudosPorReferencia || {}) as Record<string, number>
-    } catch (e) {
-      return {} as Record<string, number>
+      consulta.confirmar()
+    } catch (error) {
+      consulta.fallar(error)
     }
-  }, [rutaId, periodoCards, userSession?.id, userSession?.rol])
+  }, [rutaId, iniciarConsultaKpi, userSession?.id, userSession?.rol])
+
+  const cambiarPeriodoKpi = (periodo: PeriodoKpiRuta) => {
+    if (periodo === periodoCards) return
+    cambiarPeriodo(periodo)
+    void cargarEstadisticasRuta()
+  }
 
 
 
@@ -1125,54 +1098,22 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         })
 
         setRutaStats((prev) => {
-          if (periodoCards === 'HOY') {
-            const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasBaseParaKpi, 0)
-            const recaudo = Number(statsHoy.recaudo || prev.recaudo || 0)
-            return {
-              ...prev,
-              recaudo,
-              meta: statsHoy.meta,
-              eficiencia:
-                statsHoy.meta > 0
-                  ? Number(((recaudo / statsHoy.meta) * 100).toFixed(1))
-                  : recaudo > 0
-                    ? 100
-                    : 0,
-              pendiente: Math.max(0, statsHoy.meta - recaudo),
-              pendientes: Math.max(0, statsHoy.meta - recaudo),
-              clientes: visitasVisibles.length,
-            }
-          }
-
-          const isAusente = shouldExcludeVisitaFromOperationalMeta
-          const finalesSinAusentes = (merged || []).filter((v) => !isAusente(v))
-          const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes, 0)
-          const rutaStatsBackend = (ruta)?.estadisticas || {}
-          // `ruta` es el DETALLE, que ANIDA las cifras bajo `estadisticas` y no pone
-          // nada en la raiz. Las lecturas de raiz valian siempre `undefined` y entraban al
-          // `Math.max` como 0; queda el 0 escrito. Cuarta pantalla con esta confusion.
-          const recaudoBackendHoy = Math.max(
-            Number(rutaStatsBackend?.cobranzaDelDia || 0),
-            0,
-          )
-          const metaBackendHoy = Math.max(
-            Number(rutaStatsBackend?.metaDelDia || 0),
-            0,
-          )
-          const stats = resolveRutaHoyKpiStats(
-            statsHoy,
-            {
-              recaudo: recaudoBackendHoy,
-              meta: metaBackendHoy,
-              eficiencia: rutaStatsBackend?.avanceDiario,
-            },
-            { preferUi: Array.isArray(merged) },
-          )
+          if (!puedeActualizarHoy()) return prev
+          const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasBaseParaKpi, 0)
+          const recaudo = Number(statsHoy.recaudo || prev.recaudo || 0)
           return {
             ...prev,
-            meta: stats.meta,
-            recaudo: stats.recaudo,
-            eficiencia: stats.eficiencia,
+            recaudo,
+            meta: statsHoy.meta,
+            eficiencia:
+              statsHoy.meta > 0
+                ? Number(((recaudo / statsHoy.meta) * 100).toFixed(1))
+                : recaudo > 0
+                  ? 100
+                  : 0,
+            pendiente: Math.max(0, statsHoy.meta - recaudo),
+            pendientes: Math.max(0, statsHoy.meta - recaudo),
+            clientes: visitasVisibles.length,
           }
         });
 
@@ -1183,7 +1124,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     } catch (error) {
       console.error('Error al cargar visitas de ruta (supervisor):', error);
     }
-  }, [rutaId, hoyBogotaKey, periodoCards, cargarEstadisticasRuta]);
+  }, [rutaId, hoyBogotaKey, puedeActualizarHoy]);
 
 
 
@@ -1226,7 +1167,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     if (showMisClientes) await cargarMisCreditos();
 
-  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos, hoyBogotaKey, periodoCards, refreshHistorialOperativo])
+  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos, refreshHistorialOperativo])
 
   const handlerKpi = useCallback(() => {
 
@@ -1307,7 +1248,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     };
 
     cargarDatos();
-  }, [router, rutaId, periodoCards, cargarVisitasRuta, cargarEstadisticasRuta]);
+  }, [router, rutaId, cargarVisitasRuta, cargarEstadisticasRuta]);
 
 
 
@@ -2202,7 +2143,8 @@ const handleRegistrarPago = useCallback(async (
 
 
 
-        <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStats} userRol={userSession?.rol} />
+        <RutaKpiSection periodo={periodoCards} periodoCargado={periodoCargado} onPeriodoChange={cambiarPeriodoKpi}
+          error={errorKpi} recargar={cargarEstadisticasRuta} rutaStats={rutaStats} userRol={userSession?.rol} />
 
         {/* Banner de cierre pendiente */}
         <CierrePendienteBanner

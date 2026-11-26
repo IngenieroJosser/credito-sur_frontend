@@ -75,6 +75,8 @@ interface DashboardData {
 
 interface DashboardClientProps {
   data: DashboardData;
+  actualizando?: boolean;
+  bloqueado?: boolean;
   /**
    * Volver a pedir los datos, sin recargar nada.
    *
@@ -98,6 +100,8 @@ interface DashboardClientProps {
  */
 export function DashboardClient({
   data,
+  actualizando = false,
+  bloqueado = false,
   onDatosCambiados,
 }: DashboardClientProps) {
   const router = useRouter();
@@ -231,12 +235,14 @@ export function DashboardClient({
 
             <ExportButton
               label="Exportar" 
-              onExportExcel={handleExportExcel} 
-              onExportPDF={handleExportPDF} 
+              onExportExcel={bloqueado ? undefined : handleExportExcel}
+              onExportPDF={bloqueado ? undefined : handleExportPDF}
             />
           </div>
         </div>
 
+        <div aria-busy={actualizando} inert={bloqueado}
+          className={bloqueado ? 'space-y-20 opacity-60' : 'space-y-20'}>
         {/* Métricas principales - Optimizadas para evitar saturación */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8">
           {data.mainMetrics.map((metric, index) => (
@@ -367,6 +373,7 @@ export function DashboardClient({
 
         </div>
 
+        </div>
         {/* Footer sutil */}
         <div className="mt-8 text-center pb-6">
           <p className="text-[10px] text-gray-400 uppercase tracking-widest">

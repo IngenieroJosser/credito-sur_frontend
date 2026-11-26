@@ -88,6 +88,7 @@ import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import RutaHeader from '@/components/rutas/RutaHeader'
 
 import RutaKpiSection from '@/components/dashboards/shared/RutaKpiSection'
+import { usePeriodoKpiRuta } from '@/hooks/usePeriodoKpiRuta'
 
 import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
 import {
@@ -213,7 +214,9 @@ const RutaClientLoaded = ({
 
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
+  const { periodo: periodoCards, periodoCargado, cambiarPeriodo: setPeriodoCards,
+    iniciarConsulta: iniciarConsultaKpi, puedeActualizarHoy, error: errorKpi } = usePeriodoKpiRuta()
+  const [intentoKpi, setIntentoKpi] = useState(0)
 
   const {
     cierrePendiente,
@@ -437,8 +440,8 @@ const RutaClientLoaded = ({
       setVisitasCobrador(result.visibleItems)
       setEnrichNonce((n) => n + 1)
 
-      // Actualizar KPI directamente desde el resultado del helper
-      setRutaStatsCards((prev) => ({
+      // Las visitas son de hoy, aunque el selector de tarjetas esté en otro período.
+      if (puedeActualizarHoy()) setRutaStatsCards((prev) => ({
         ...prev,
         recaudo: result.stats.recaudo,
         meta: result.stats.meta,
@@ -449,7 +452,7 @@ const RutaClientLoaded = ({
       console.error('Error cargando daily-visits de ruta actual:', error)
       setDailyVisitsHoy(null)
     }
-  }, [rutaId, hoyBogotaKey, rutaData, initialRuta])
+  }, [rutaId, hoyBogotaKey, rutaData, initialRuta, puedeActualizarHoy])
 
   useEffect(() => {
     void cargarDailyVisitsHoy()
@@ -981,10 +984,15 @@ const RutaClientLoaded = ({
   const porcentajeProgreso = estadisticas?.avanceDiario || 0
 
   useEffect(() => {
+    if (!initialRuta.id) return
+    const consulta = iniciarConsultaKpi(periodoCards)
+    if (!consulta) return
+    let activa = true
     const run = async () => {
       try {
         const { inicio, fin } = getDatesByPeriod(periodoCards)
         const saldo = await obtenerSaldoDisponibleRuta(initialRuta.id, undefined, inicio, fin)
+        if (!activa || !consulta.vigente()) return
 
         const recaudo = Number(
           saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? estadisticas?.cobranzaDelDia ?? 0,
@@ -1097,136 +1105,24 @@ const RutaClientLoaded = ({
           gastosProvisionales: Number(saldo?.egresosProvisionales ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0),
         })
-      } catch {
-        const recaudo = Number(estadisticas?.cobranzaDelDia ?? 0)
-
-        const isAusente = shouldExcludeVisitaFromOperationalMeta
-
-        // Usar visitasRutaHoyKpi como fuente autoritativa para KPI cuando es HOY
-        const fuenteKpiHoy =
-          periodoCards === 'HOY' && visitasRutaHoyKpi.length > 0
-            ? visitasRutaHoyKpi
-            : Array.isArray(visitasCobrador)
-              ? visitasCobrador
-                  .filter((v: VisitaRuta) => {
-                    const recaudado = Number(v?.recaudadoDelDia || 0)
-                    const metaPendiente = Number(v?.montoCuotaPendiente || 0)
-                    const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
-                    // `estadoGestion` no lo escribe nadie en una visita: el estado del dia
-                    // esta en `estadoVisita`, que se rellena desde el RegistroVisita. Se deja
-                    // el mismo orden de respaldo que usa `rutas-core`, donde esta misma
-                    // comprobacion si funcionaba porque caia al segundo termino.
-                    const estadoGestion = String(
-                      v?.estadoGestion || v?.estadoVisita || '',
-                    ).toUpperCase()
-
-                    return (
-                      metaPendiente > 0 ||
-                      cuotaNormal > 0 ||
-                      recaudado > 0 ||
-                      estadoGestion.includes('PAGO')
-                    )
-                  })
-                  .filter((v: VisitaRuta) => !isAusente(v))
-              : []
-
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(
-          fuenteKpiHoy,
-          periodoCards === 'HOY' ? 0 : recaudo,
-        )
-
-        const metaBackendRaw = estadisticas?.metaDelDia
-        const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
-        const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
-
-        // `initialRuta` sale de `obtenerRutaPorId`, o sea del DETALLE, y el detalle
-        // manda las cifras anidadas bajo `estadisticas`. La rama que leia
-        // `initialRuta.metaDelDia` en la raiz era del listado: aqui siempre valia
-        // `undefined` y entraba al `Math.max` como 0. Se quita y queda el 0 escrito.
-        const metaBackendHoy = Math.max(
-          Number(metaBackend ?? 0),
-          Number(initialRuta?.estadisticas?.metaDelDia || 0),
-          0,
-        )
-        const recaudoBackendHoy = Math.max(
-          Number(recaudo || 0),
-          Number(initialRuta?.estadisticas?.cobranzaDelDia || 0),
-          0,
-        )
-        const tieneResumenHoy =
-          periodoCards === 'HOY' &&
-          Boolean(
-            resumenDailyVisitsHoy &&
-            (resumenDailyVisitsHoy.meta !== undefined ||
-              resumenDailyVisitsHoy.recaudo !== undefined ||
-              resumenDailyVisitsHoy.recaudoOperativo !== undefined),
-          )
-        const metaResumenHoy = tieneResumenHoy
-          ? Number(resumenDailyVisitsHoy?.meta ?? 0)
-          : metaBackendHoy
-        const recaudoResumenHoy = tieneResumenHoy
-          ? Number(resumenDailyVisitsHoy?.recaudoOperativo ?? resumenDailyVisitsHoy?.recaudo ?? 0)
-          : recaudoBackendHoy
-
-        const statsRutaHoy =
-          periodoCards === 'HOY'
-            ? {
-                meta: statsHoy.meta,
-                recaudo: recaudoResumenHoy,
-                pendiente: Math.max(0, statsHoy.meta - recaudoResumenHoy),
-                eficiencia:
-                  statsHoy.meta > 0
-                    ? Number(((recaudoResumenHoy / statsHoy.meta) * 100).toFixed(1))
-                    : recaudoResumenHoy > 0
-                      ? 100
-                      : 0,
-              }
-            : resolveRutaHoyKpiStats(
-                statsHoy,
-                {
-                  meta: metaBackendHoy,
-                  recaudo: recaudoBackendHoy,
-                  eficiencia: estadisticas?.avanceDiario,
-                },
-                { preferUi: Array.isArray(visitasCobrador) },
-              )
-
-        const meta = periodoCards === 'HOY' ? statsRutaHoy.meta : Number(metaBackend ?? 0)
-
-        const recaudoFinal = periodoCards === 'HOY' ? statsRutaHoy.recaudo : Number(recaudo ?? 0)
-
-        const pendienteHoy = periodoCards === 'HOY' ? statsRutaHoy.pendiente : undefined
-
-        const eficiencia =
-          periodoCards === 'HOY'
-            ? statsRutaHoy.eficiencia
-            : meta > 0
-              ? Math.min(100, Math.max(0, Number(((recaudoFinal / meta) * 100).toFixed(1))))
-              : Number(estadisticas?.avanceDiario ?? 0)
-        setRutaStatsCards((prev) => ({
-          ...prev,
-          recaudo: recaudoFinal,
-          meta,
-          eficiencia,
-          pendiente: periodoCards === 'HOY' ? pendienteHoy : prev.pendiente,
-          gastosProvisionales: prev.gastosProvisionales,
-        }))
+        consulta.confirmar()
+      } catch (error) {
+        if (activa) consulta.fallar(error)
       }
     }
 
-    if (!initialRuta?.id) return
     void run()
+    return () => { activa = false }
   }, [
     estadisticas?.cobranzaDelDia,
     estadisticas?.metaDelDia,
     estadisticas?.avanceDiario,
     getDatesByPeriod,
-    initialRuta?.id,
+    initialRuta,
+    iniciarConsultaKpi,
+    intentoKpi,
     periodoCards,
-    resumenDailyVisitsHoy?.efectividad,
-    resumenDailyVisitsHoy?.meta,
-    resumenDailyVisitsHoy?.recaudo,
-    resumenDailyVisitsHoy?.recaudoOperativo,
+    resumenDailyVisitsHoy,
     visitasCobrador,
     visitasRutaHoyKpi,
   ])
@@ -1360,7 +1256,10 @@ const RutaClientLoaded = ({
 
         <RutaKpiSection
           periodo={periodoCards}
+          periodoCargado={periodoCargado}
           onPeriodoChange={setPeriodoCards}
+          error={errorKpi}
+          recargar={() => setIntentoKpi((intento) => intento + 1)}
           rutaStats={rutaStatsCards}
         />
 
@@ -2123,8 +2022,8 @@ Qué visitas se ven
                 }),
               )
 
-              // Recalcular KPI inmediatamente
-              setRutaStatsCards((prev) => {
+              // La reprogramación modifica la meta de hoy, no el resumen de otro período.
+              if (puedeActualizarHoy()) setRutaStatsCards((prev) => {
                 const visitasActualizadas = visitasCobrador.map((v: VisitaRuta): VisitaParcial => {
                   if (v.id !== visitaReprogramar.id) return v
 

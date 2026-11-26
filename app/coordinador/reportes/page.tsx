@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import ContenidoPorPeriodo from '@/components/ui/ContenidoPorPeriodo'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { BarChart3, Eye, Loader2 } from 'lucide-react'
@@ -23,15 +24,7 @@ const ReportesCoordinador = () => {
   const period = (searchParams.get('period') as TimeFilterPeriod) || 'today'
   const routeId = searchParams.get('rutaId') || undefined
   
-  const {
-    loading,
-    error,
-    reportData,
-    fetchOperationalReport,
-    exportReport
-  } = useReportesCoordinador()
-  
-  const [mounted, setMounted] = useState(false)
+  const { loading, error, reportData, periodoCargado, recargar, exportReport } = useReportesCoordinador(period, routeId)
   const [reporteAVisualizar, setReporteAVisualizar] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
 
@@ -75,37 +68,19 @@ const ReportesCoordinador = () => {
     }
   }
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setMounted(true)
-      fetchOperationalReport({ period, routeId })
-    }, 0)
-    return () => clearTimeout(timer)
-  }, [])
-
-  const recargarReporte = useCallback(() => {
-    if (mounted) fetchOperationalReport({ period, routeId })
-  }, [mounted, period, routeId, fetchOperationalReport])
-
-  useEffect(() => {
-    if (mounted) {
-      fetchOperationalReport({ period, routeId })
-    }
-  }, [period, routeId, mounted])
-
   useRealtimeData(
     ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados'],
-    recargarReporte,
+    recargar,
   )
 
-  if (error && mounted) {
+  if (error && !reportData) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
         <div className="max-w-md text-center">
           <div className="text-red-600 mb-4 text-lg font-semibold">Error al cargar reportes</div>
           <p className="text-slate-600 mb-6">{error}</p>
           <button
-            onClick={() => fetchOperationalReport({ period, routeId })}
+            onClick={recargar}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Reintentar
@@ -115,7 +90,7 @@ const ReportesCoordinador = () => {
     )
   }
 
-  if (!mounted || loading) {
+  if (!reportData) {
     return (
       <div className="space-y-4 p-4 sm:p-6" aria-busy="true">
         <span className="sr-only">Cargando reportes operativos…</span>
@@ -155,22 +130,35 @@ const ReportesCoordinador = () => {
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               <span className="text-blue-600">Reportes </span><span className="text-orange-500">Operativos</span>
             </h1>
-            <p className="text-slate-500 mt-2 font-medium">Consolidado del día: cobranza, préstamos y clientes captados.</p>
+            <p className="text-slate-500 mt-2 font-medium">Consolidado de cobranza, préstamos y clientes captados.</p>
           </div>
           <div className="flex border-b border-slate-200 pb-4">
             <div className="flex items-center gap-3 ml-auto">
-              {exporting ? (
+              {!loading && !error && (exporting ? (
                 <div className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Exportando...</span>
                 </div>
               ) : (
                 <ExportButton label="Exportar" onExportExcel={handleExportExcel} onExportPDF={handleExportPDF} />
-              )}
+              ))}
             </div>
           </div>
         </header>
 
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 bg-white p-4 rounded-2xl border border-slate-200">
+          <h3 className="text-xl font-bold text-slate-800">Desglose por Ruta</h3>
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+            <FiltroRuta
+              onRutaChange={handleRutaChange}
+              selectedRutaId={routeId || null}
+              showAllOption={true}
+            />
+            <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
+          </div>
+        </div>
+
+        <ContenidoPorPeriodo periodoMostrado={periodoCargado} periodo={period} cargando={loading} error={error} recargar={recargar}>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Recaudo Total</p>
@@ -200,17 +188,6 @@ const ReportesCoordinador = () => {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 bg-white p-4 rounded-2xl border border-slate-200">
-          <h3 className="text-xl font-bold text-slate-800">Desglose por Ruta</h3>
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-            <FiltroRuta 
-              onRutaChange={handleRutaChange} 
-              selectedRutaId={routeId || null}
-              showAllOption={true}
-            />
-            <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
-          </div>
-        </div>
 
         <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
@@ -278,6 +255,7 @@ const ReportesCoordinador = () => {
             </table>
           </div>
         </section>
+        </ContenidoPorPeriodo>
 
         {reporteAVisualizar && (
           <DetalleReporteOperativoModal

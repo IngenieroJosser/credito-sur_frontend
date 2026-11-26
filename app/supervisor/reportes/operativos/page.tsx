@@ -1,16 +1,14 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import ContenidoPorPeriodo from '@/components/ui/ContenidoPorPeriodo'
+import PanelDeError from '@/components/ui/PanelDeError'
+import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { BarChart3, DollarSign, FilePlus, MapPin, TrendingUp, Users, Eye } from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
-import {
-  reportesCoordinadorService,
-  type RoutePerformance,
-} from '@/services/reportes-coordinador-service'
 import { SkeletonTablero } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
 import Cifra from '@/components/ui/Cifra'
@@ -28,68 +26,29 @@ const ReportesOperativosSupervisorPage = () => {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
-  const [mounted, setMounted] = useState(false)
-  const [rendimientoRutas, setRendimientoRutas] = useState<RoutePerformance[]>([])
-  const [totalRecaudo, setTotalRecaudo] = useState(0)
-  const [totalObjetivo, setTotalObjetivo] = useState(0)
-  const [porcentajeGlobal, setPorcentajeGlobal] = useState(0)
-  /*
-   * Los tres que faltaban.
-   *
-   * El endpoint ya los devuelve —`totalPrestamosNuevos`, `totalAfiliaciones`
-   * y `totalMontoPrestamosNuevos`— y la copia de esta misma pantalla para el
-   * admin los lee. Aquí estaban escritos a mano: «3 préstamos nuevos»,
-   * «3 clientes nuevos», «total colocado $450.000» y «en 2 rutas diferentes»,
-   * fijos, al lado de dos tarjetas que sí traían datos de verdad. Nada en la
-   * pantalla decía cuáles eran cuáles.
-   */
-  const [prestamosNuevos, setPrestamosNuevos] = useState(0)
-  const [montoPrestamosNuevos, setMontoPrestamosNuevos] = useState(0)
-  const [clientesNuevos, setClientesNuevos] = useState(0)
-
-  const handleExportExcel = () => {
-    reportesCoordinadorService.exportReport({ period }, 'excel').catch(console.error)
-  }
-
-  const handleExportPDF = () => {
-    reportesCoordinadorService.exportReport({ period }, 'pdf').catch(console.error)
-  }
-
-  useEffect(() => {
-    const timer = setTimeout(() => setMounted(true), 0)
-    return () => clearTimeout(timer)
-  }, [])
-
-  const fetchData = useCallback(async () => {
-    try {
-      const data = await reportesCoordinadorService.getOperationalReport({ period })
-      setRendimientoRutas(data.rendimientoRutas || [])
-      setTotalRecaudo(data.totalRecaudo || 0)
-      setTotalObjetivo(data.totalMeta || 0)
-      setPorcentajeGlobal(data.porcentajeGlobal || 0)
-      setPrestamosNuevos(data.totalPrestamosNuevos || 0)
-      setMontoPrestamosNuevos(data.totalMontoPrestamosNuevos || 0)
-      setClientesNuevos(data.totalAfiliaciones || 0)
-    } catch (err) {
-      console.error('Error cargando reportes operativos:', err)
-    }
-  }, [period])
-
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  const { loading, error, reportData, periodoCargado, recargar, exportReport } = useReportesCoordinador(period)
+  const handleExportExcel = () => exportReport({ period }, 'excel')
+  const handleExportPDF = () => exportReport({ period }, 'pdf')
 
   useRealtimeData(
     ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados'],
-    fetchData,
+    recargar,
   )
 
-  if (!mounted)
-    return (
-      <div className="p-4 sm:p-6">
-        <SkeletonTablero />
-      </div>
-    )
+  if (error && !reportData) {
+    return <PanelDeError titulo="No se pudo cargar el reporte operativo" mensaje={error} onReintentar={recargar} />
+  }
+  if (!reportData) return <div className="p-4 sm:p-6"><SkeletonTablero /></div>
+
+  const {
+    rendimientoRutas,
+    totalRecaudo,
+    totalMeta: totalObjetivo,
+    porcentajeGlobal,
+    totalPrestamosNuevos: prestamosNuevos,
+    totalMontoPrestamosNuevos: montoPrestamosNuevos,
+    totalAfiliaciones: clientesNuevos,
+  } = reportData
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -114,10 +73,10 @@ const ReportesOperativosSupervisorPage = () => {
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               <span className="text-blue-600">Rendimiento </span>
-              <span className="text-orange-500">Diario</span>
+              <span className="text-orange-500">Operativo</span>
             </h1>
             <p className="text-lg text-slate-500 mt-2 max-w-2xl font-medium leading-relaxed">
-              Consolidado de operaciones del día: cobranza, colocación de créditos y captación de
+              Consolidado de cobranza, colocación de créditos y captación de
               clientes.
             </p>
           </div>
@@ -125,12 +84,13 @@ const ReportesOperativosSupervisorPage = () => {
             <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
             <ExportButton
               label="Exportar"
-              onExportExcel={handleExportExcel}
-              onExportPDF={handleExportPDF}
+              onExportExcel={loading || error ? undefined : handleExportExcel}
+              onExportPDF={loading || error ? undefined : handleExportPDF}
             />
           </div>
         </header>
 
+        <ContenidoPorPeriodo periodoMostrado={periodoCargado} periodo={period} cargando={loading} error={error} recargar={recargar}>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="mb-4">
@@ -153,7 +113,6 @@ const ReportesOperativosSupervisorPage = () => {
                 <TrendingUp className="h-3 w-3" />
                 {porcentajeGlobal}% eficiencia
               </span>
-              <span className="text-xs text-slate-400 font-medium">vs ayer</span>
             </div>
           </div>
 
@@ -377,6 +336,7 @@ const ReportesOperativosSupervisorPage = () => {
             </div>
           </div>
         </section>
+        </ContenidoPorPeriodo>
       </div>
     </div>
   )

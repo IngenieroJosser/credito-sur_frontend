@@ -6,7 +6,7 @@ import PantallaCarga from '@/components/ui/PantallaCarga'
 import PanelDeError from '@/components/ui/PanelDeError'
 import AvisoActualizando from '@/components/ui/AvisoActualizando'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DashboardClient } from '@/app/admin/dashboard-client'
 import { tarjetaDeCarteraEnMora } from '@/lib/dashboard/cartera-en-mora'
@@ -137,9 +137,11 @@ export default function CoordinadorPage() {
 
   /** Sube con cada «Reintentar» y vuelve a disparar la carga. */
   const [intentoDeCarga, setIntentoDeCarga] = useState(0)
+  const secuenciaCarga = useRef(0)
 
   const initializeDashboard = useCallback(async () => {
-    let isMounted = true
+    const intento = ++secuenciaCarga.current
+    const vigente = () => intento === secuenciaCarga.current
     /*
      * Con datos en pantalla se avisa de que se estan actualizando. Sin
      * esto el cambio de periodo era invisible: las mismas cifras de antes
@@ -169,7 +171,7 @@ export default function CoordinadorPage() {
           CONTADOR: '/contador/contable',
           PUNTO_DE_VENTA: '/punto-de-venta',
         }
-        if (isMounted) {
+        if (vigente()) {
           setState({
             isLoading: false,
             userData: parsedUser,
@@ -311,7 +313,7 @@ export default function CoordinadorPage() {
         trend: (c.trend || 'up') as 'up' | 'down',
       }))
 
-      if (isMounted) {
+      if (vigente()) {
         setState({
           isLoading: false,
           userData: parsedUser,
@@ -330,6 +332,7 @@ export default function CoordinadorPage() {
         })
       }
     } catch (error) {
+      if (!vigente()) return
       console.error('Error cargando dashboard coordinador:', error)
       // Solo hacer logout en error de autenticación (401), no en errores de red
       if (estadoDeError(error) === 401 || estadoDeError(error) === 401) {
@@ -351,12 +354,12 @@ export default function CoordinadorPage() {
         }))
       }
     }
-    isMounted = false
   }, [router, period])
 
   useEffect(() => {
-    initializeDashboard()
-  }, [initializeDashboard])
+    void initializeDashboard()
+    return () => { secuenciaCarga.current++ }
+  }, [initializeDashboard, intentoDeCarga])
 
   // Tiempo real: refrescar dashboard cuando pagos o préstamos cambien
   useRealtimeData(
@@ -417,19 +420,12 @@ export default function CoordinadorPage() {
           onReintentar={() => setIntentoDeCarga((n) => n + 1)}
         />
       ) : null}
-      <div
-        className={
-          state.actualizando
-            ? 'pointer-events-none opacity-60 transition-opacity'
-            : 'transition-opacity'
-        }
-        aria-busy={state.actualizando}
-      >
-        <DashboardClient
-          data={state.dashboardData}
-          onDatosCambiados={() => { void initializeDashboard() }}
-        />
-      </div>
+      <DashboardClient
+        data={state.dashboardData}
+        actualizando={state.actualizando}
+        bloqueado={state.actualizando || !!state.errorCarga}
+        onDatosCambiados={initializeDashboard}
+      />
     </div>
   )
 }

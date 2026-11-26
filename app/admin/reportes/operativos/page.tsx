@@ -23,7 +23,9 @@
  * - Para conectar API real: Reemplazar `ARTICULOS_MOCK` y `rendimientoRutas` con llamadas fetch/axios.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import ContenidoPorPeriodo from '@/components/ui/ContenidoPorPeriodo'
+import PanelDeError from '@/components/ui/PanelDeError'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { BarChart3, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
@@ -45,8 +47,6 @@ const ReportesOperativosPage = () => {
   const searchParams = useSearchParams()
   const period = (searchParams.get('period') as TimeFilterPeriod) || 'today'
 
-  const { loading, error, reportData, fetchOperationalReport, exportReport } =
-    useReportesCoordinador()
 
   const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -67,7 +67,12 @@ const ReportesOperativosPage = () => {
 
   // Filtro específico para ver el rendimiento de una sola ruta
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
-  const [metaByRuta, setMetaByRuta] = useState<Record<string, number>>({})
+  const { loading, error, reportData, periodoCargado, recargar, exportReport } =
+    useReportesCoordinador(period, filterRuta || undefined, mounted)
+  const [metasCalculadas, setMetasCalculadas] = useState<{
+    reporte: typeof reportData
+    metas: Record<string, number>
+  } | null>(null)
 
   // El aviso de progreso lo pone <ExportButton>: espera a que termine la
   // promesa, ensena "Generando Excel…" y se bloquea mientras dura.
@@ -118,56 +123,26 @@ const ReportesOperativosPage = () => {
     return () => clearTimeout(timer)
   }, [])
 
-  // Recarga de datos del reporte
   useEffect(() => {
-    if (mounted) {
-      fetchOperationalReport({
-        period,
-        routeId: filterRuta || undefined,
-      }).catch((err) => console.error('Error loading report:', err))
-    }
-  }, [period, filterRuta, mounted, fetchOperationalReport])
-
-  useEffect(() => {
-    if (!mounted) return
-    const rutas = reportData?.rendimientoRutas
-    const ids = (Array.isArray(rutas) ? rutas : []).map((r) => String(r?.id || '')).filter(Boolean)
-    if (ids.length === 0) {
-      setMetaByRuta({})
-      return
-    }
-
-    const mapPeriod = (p: TimeFilterPeriod): 'today' | 'week' | 'month' | 'year' => {
-      if (p === 'week') return 'week'
-      if (p === 'month') return 'month'
-      if (p === 'year') return 'year'
-      return 'today'
-    }
-
-    const run = async () => {
-      try {
-        const metas = await computeOperationalMetaByRouteIdsForTimeFilter(mapPeriod(period), ids)
-        setMetaByRuta(metas || {})
-      } catch {
-        setMetaByRuta({})
-      }
-    }
-    void run()
-  }, [mounted, period, reportData])
-
-  const handleRealtimeRefresh = useCallback(() => {
-    if (!mounted) return
-    fetchOperationalReport({ period, routeId: filterRuta || undefined }).catch((err) =>
-      console.error('Error loading report (rt):', err),
-    )
-  }, [mounted, period, filterRuta, fetchOperationalReport])
+    if (!reportData || !periodoCargado) return
+    const ids = reportData.rendimientoRutas.map((ruta) => ruta.id).filter(Boolean)
+    if (!ids.length) return
+    let vigente = true
+    void computeOperationalMetaByRouteIdsForTimeFilter(periodoCargado, ids).then((metas) => {
+      if (vigente) setMetasCalculadas({ reporte: reportData, metas })
+    }).catch(() => {})
+    return () => { vigente = false }
+  }, [periodoCargado, reportData])
 
   useRealtimeData(
     ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados'],
-    handleRealtimeRefresh,
+    recargar,
   )
 
-  if (!mounted) {
+  if (error && !reportData) {
+    return <PanelDeError titulo="No se pudo cargar el reporte operativo" mensaje={error} onReintentar={recargar} />
+  }
+  if (!reportData) {
     return (
       <div className="p-4 sm:p-6">
         <SkeletonTablero />
@@ -175,20 +150,8 @@ const ReportesOperativosPage = () => {
     )
   }
 
-  // Usamos los datos reales del hook, o valores por defecto seguros si aún no cargan
-  const data = reportData || {
-    totalRecaudo: 0,
-    totalMeta: 0,
-    porcentajeGlobal: 0,
-    totalPrestamosNuevos: 0,
-    totalAfiliaciones: 0,
-    efectividadPromedio: 0,
-    totalMontoPrestamosNuevos: 0,
-    rendimientoRutas: [],
-    periodo: period,
-    fechaInicio: '',
-    fechaFin: '',
-  }
+  const data = reportData
+  const metaByRuta = metasCalculadas?.reporte === reportData ? metasCalculadas.metas : {}
 
   const pickMeta = (item: RoutePerformance): number => {
     const id = String(item?.id || '')
@@ -249,7 +212,7 @@ const ReportesOperativosPage = () => {
               <span className="text-blue-600">Rendimiento</span>
             </h1>
             <p className="text-sm md:text-base lg:text-lg text-slate-500 mt-2 max-w-2xl font-medium leading-relaxed">
-              Consolidado de operaciones del día: cobranza, colocación de créditos y captación de
+              Consolidado del período: cobranza, colocación de créditos y captación de
               clientes.
             </p>
           </div>
@@ -257,13 +220,14 @@ const ReportesOperativosPage = () => {
             <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
             <ExportButton
               label="Exportar"
-              onExportExcel={handleExportExcel}
-              onExportPDF={handleExportPDF}
+              onExportExcel={loading || error ? undefined : handleExportExcel}
+              onExportPDF={loading || error ? undefined : handleExportPDF}
             />
           </div>
         </header>
 
-        {/* KPIs del Día */}
+        <ContenidoPorPeriodo periodoMostrado={periodoCargado} periodo={period} cargando={loading} error={error} recargar={recargar}>
+        {/* KPIs del período */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="mb-4">
@@ -286,7 +250,6 @@ const ReportesOperativosPage = () => {
                 <TrendingUp className="h-3 w-3" />
                 {porcentajeGlobal}% eficiencia
               </span>
-              <span className="text-xs text-slate-400 font-medium">vs ayer</span>
             </div>
           </div>
 
@@ -561,6 +524,7 @@ const ReportesOperativosPage = () => {
             </div>
           ))}
         </section>
+        </ContenidoPorPeriodo>
       </div>
     </div>
   )

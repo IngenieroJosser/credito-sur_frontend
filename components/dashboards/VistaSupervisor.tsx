@@ -23,8 +23,9 @@ import { TimeFilter, type TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import { formatCurrency } from '@/lib/utils'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
-import { dashboardService, type DashboardData } from '@/services/dashboard-coordinador-service'
-import { formatErrorForComponent } from '@/lib/api/api'
+import { dashboardService } from '@/services/dashboard-coordinador-service'
+import { useConsultaPorPeriodo } from '@/hooks/useConsultaPorPeriodo'
+import ContenidoPorPeriodo from '@/components/ui/ContenidoPorPeriodo'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import { prestamosService } from '@/services/prestamos-service'
@@ -50,42 +51,17 @@ const VistaSupervisor = () => {
   const [timeFilter, setTimeFilter] = useState<TimeFilterPeriod>('today')
   const currentDate = new Date()
 
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
 
   const [showCreditoTipoModal, setShowCreditoTipoModal] = useState(false)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const router = useRouter()
 
-  const loadDashboardData = useCallback(async () => {
-    try {
-      if (!refreshing) setLoading(true)
-      setError(null)
-      // El target de cada punto lo manda el backend ("meta nominal diaria") y
-      // se usa tal cual. Antes se pisaba el de TODOS los puntos con una sola
-      // cifra global del periodo: como `Sem` y `Mes` agrupan por dia, cada
-      // barra quedaba con la meta del periodo entero y su eficiencia salia
-      // dividida entre el numero de barras (en un mes, ~30 veces menor).
-      //
-      // Es la misma decision de 247aec2 ("usar target especifico por punto del
-      // backend en lugar de meta global"), que se aplico solo al panel del
-      // administrador y a VistaCoordinador, un componente que no renderiza
-      // nadie. Aqui nunca llego.
-      const data = await dashboardService.getDashboardData(timeFilter)
-      setDashboardData(data)
-    } catch (err) {
-      setError(formatErrorForComponent(err))
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [timeFilter, refreshing])
-
-  useEffect(() => {
-    loadDashboardData()
-  }, [loadDashboardData])
+  const consultarPanel = useCallback(() => dashboardService.getDashboardData(timeFilter), [timeFilter])
+  const { resultado, cargando: loading, error, recargar: loadDashboardData } = useConsultaPorPeriodo(
+    timeFilter, consultarPanel, 'No se pudo cargar el panel de supervisión.',
+  )
+  const dashboardData = resultado?.datos
+  const periodoCargado = resultado?.clave
 
   // Tiempo real: refrescar cuando pagos, préstamos o rutas cambien
   useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas', 'dashboards_actualizados'], loadDashboardData)
@@ -157,10 +133,6 @@ const VistaSupervisor = () => {
   const handleExportExcel = () => void exportarResumen('excel')
   const handleExportPDF = () => void exportarResumen('pdf')
 
-  const handleRefresh = () => {
-    setRefreshing(true)
-    loadDashboardData()
-  }
 
   const formatDate = (date: Date) => {
     const options: Intl.DateTimeFormatOptions = {
@@ -176,13 +148,13 @@ const VistaSupervisor = () => {
     if (!dashboardData) return []
     const metrics = dashboardData.metrics
     const periodLabel =
-      timeFilter === 'today'
+      periodoCargado === 'today'
         ? 'Hoy'
-        : timeFilter === 'week'
+        : periodoCargado === 'week'
         ? 'Semana actual'
-        : timeFilter === 'month'
+        : periodoCargado === 'month'
         ? 'Mes actual'
-        : 'Trimestre actual'
+        : 'Año actual'
 
     const trendValues = (dashboardData.trend || []).map((t) => t.value || 0)
     const loanCompletion = metrics.loanCompletion || {
@@ -230,7 +202,7 @@ const VistaSupervisor = () => {
         trendData: trendValues.length > 0 ? trendValues : [0],
       },
     ]
-  }, [dashboardData, timeFilter])
+  }, [dashboardData, periodoCargado])
 
   if (loading && !dashboardData) {
     return (
@@ -248,7 +220,7 @@ const VistaSupervisor = () => {
           <h3 className="text-lg font-black text-slate-800 mb-2">Error al cargar datos</h3>
           <p className="text-sm text-slate-600 mb-6">{error}</p>
           <button
-            onClick={handleRefresh}
+            onClick={loadDashboardData}
             className="px-6 py-2 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors flex items-center gap-2 mx-auto"
           >
             <RefreshCw className="h-4 w-4" />
@@ -287,7 +259,9 @@ const VistaSupervisor = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <ExportButton label="Exportar" onExportExcel={handleExportExcel} onExportPDF={handleExportPDF} />
+              <ExportButton label="Exportar"
+                onExportExcel={loading || error ? undefined : handleExportExcel}
+                onExportPDF={loading || error ? undefined : handleExportPDF} />
             </div>
           </div>
 
@@ -298,6 +272,7 @@ const VistaSupervisor = () => {
           />
         </div>
 
+        <ContenidoPorPeriodo periodoMostrado={periodoCargado} periodo={timeFilter} cargando={loading} error={error} recargar={loadDashboardData}>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8 mb-8">
           {mainMetrics.map((metric, index) => (
             <div
@@ -362,15 +337,10 @@ const VistaSupervisor = () => {
               </div>
             </div>
 
-            {loading ? (
-              <div className="h-64 flex items-center justify-center">
-                <div className="w-full h-48 bg-slate-100 rounded-2xl animate-pulse"></div>
-              </div>
-            ) : (
-              <TransactionalHighDetailChart data={dashboardData?.trend || []} />
-            )}
+            <TransactionalHighDetailChart data={dashboardData?.trend || []} />
           </div>
         </div>
+        </ContenidoPorPeriodo>
 
       </div>
 

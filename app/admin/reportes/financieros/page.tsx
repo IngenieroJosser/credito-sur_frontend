@@ -3,7 +3,9 @@ import AvisoActualizando from '@/components/ui/AvisoActualizando'
 import type { TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import { formatFechaBogota } from '@/lib/format-date'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
+import { useConsultaPorPeriodo } from '@/hooks/useConsultaPorPeriodo'
+import PanelDeError from '@/components/ui/PanelDeError'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePathname, useRouter } from 'next/navigation'
 import { 
@@ -19,7 +21,7 @@ import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
 import { getFinancialTargets } from '@/services/reportes-service'
-import { getResumenFinanciero, getMovimientosLedger } from '@/services/contabilidad-service'
+import { getResumenFinanciero, getMovimientosLedger as leerMovimientosLedger } from '@/services/contabilidad-service'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import {
@@ -98,42 +100,6 @@ const ReportesFinancierosPage = () => {
   const router = useRouter()
   const pathname = usePathname()
   const [periodo, setPeriodo] = useState<FinancialPeriod>('DIARIO')
-  const [loading, setLoading] = useState(true)
-  /*
-   * Si ya se cargo alguna vez.
-   *
-   * Sin esto, `if (loading)` sustituia la pantalla ENTERA por el esqueleto en
-   * cada cambio de periodo. Lo reporto el dueño: «al usar sem, mes o año...
-   * en reportes financieros si necesito que corrijas eso». El esqueleto es
-   * para la primera carga, cuando de verdad no hay nada que enseñar; al
-   * cambiar de periodo lo que hay se queda, atenuado y con un aviso.
-   */
-  const [huboCarga, setHuboCarga] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  
-  const [summary, setSummary] = useState<FinancialSummary>({
-    entradasCaja: 0,
-    ingresos: 0,
-    ingresosDevengados: 0,
-    cobros: 0,
-    egresos: 0,
-    utilidad: 0,
-    utilidadOperativa: 0,
-    provisionCartera: 0,
-    utilidadNeta: 0,
-    margen: 0,
-    interes: 0,
-    mora: 0,
-    margenArticulos: 0,
-    otrosIngresos: 0,
-    gastosOperativos: 0,
-  })
-  
-  const [monthlyData, setMonthlyData] = useState<MonthlyEvolution[]>([])
-  const [trendIngresos, setTrendIngresos] = useState<number | null>(null)
-  const [trendCobros, setTrendCobros] = useState<number | null>(null)
-  const [trendEgresos, setTrendEgresos] = useState<number | null>(null)
-  const [metaMargen, setMetaMargen] = useState<number | null>(null)
 
   const basePath = pathname?.startsWith('/contador') ? '/contador' : '/admin'
 
@@ -155,15 +121,21 @@ const ReportesFinancierosPage = () => {
     }
   }
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
+  const consultarReporte = useCallback(async () => {
+      let summary: FinancialSummary
+      let monthlyData: MonthlyEvolution[] = []
+      let trendIngresos: number | null = null
+      let trendCobros: number | null = null
+      let trendEgresos: number | null = null
+      let metaMargen: number | null = null
+      const getMovimientosLedger = (filtros: Parameters<typeof leerMovimientosLedger>[0]) =>
+        leerMovimientosLedger(filtros, { propagarError: true })
       try {
         const targets = await getFinancialTargets()
         if (targets && typeof (targets).metaMargen === 'number') {
-          setMetaMargen((targets).metaMargen)
+          metaMargen = (targets).metaMargen
         } else {
-          setMetaMargen(null)
+          metaMargen = null
         }
       } catch (error) {
         // Sin metas configuradas la pantalla funciona igual, sin la referencia.
@@ -180,6 +152,7 @@ const ReportesFinancierosPage = () => {
       const startKey = getBogotaDateKey(new Date(startDate))
       const endKey = getBogotaDateKey(new Date(endDate))
       const resumenPeriodo = await getResumenFinanciero(startKey, endKey)
+      if (!resumenPeriodo) throw new Error('No se pudo consultar el resumen financiero.')
       const movimientosPeriodo = await getMovimientosLedger({ fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
       const totalIngresosPeriodo = Number(resumenPeriodo?.ingresosHoy || 0)
       const totalEntradasCajaPeriodo = (Array.isArray(movimientosPeriodo?.data) ? movimientosPeriodo.data : [])
@@ -200,7 +173,7 @@ const ReportesFinancierosPage = () => {
 
       const margenPeriodo = totalIngresosDevengadosPeriodo > 0 ? (utilidadOperativaPeriodo / totalIngresosDevengadosPeriodo) * 100 : 0
 
-      setSummary({
+      summary = {
         entradasCaja: totalEntradasCajaPeriodo,
         ingresos: totalIngresosPeriodo,
         ingresosDevengados: totalIngresosDevengadosPeriodo,
@@ -216,7 +189,7 @@ const ReportesFinancierosPage = () => {
         margenArticulos: Number((resumenPeriodo)?.margenArticulosHoy || 0),
         otrosIngresos: Number((resumenPeriodo)?.otrosIngresosHoy || 0),
         gastosOperativos: totalEgresosPeriodo,
-      })
+      }
 
       const nowKey = getBogotaDateKey(ahora)
       const [y, mes, d] = nowKey.split('-').map(Number)
@@ -268,6 +241,7 @@ const ReportesFinancierosPage = () => {
         const prevStartKey = getBogotaDateKey(new Date(prevRange.inicio))
         const prevEndKey = getBogotaDateKey(new Date(prevRange.fin))
         const prevResumen = await getResumenFinanciero(prevStartKey, prevEndKey)
+        if (!prevResumen) throw new Error('Resumen del período anterior no disponible.')
         const prevIngresos = Number(prevResumen?.ingresosHoy || 0)
         const prevCobros = Number((prevResumen)?.cobranzaHoy || 0)
         const prevEgresos = Number(prevResumen?.egresosHoy || 0)
@@ -280,13 +254,13 @@ const ReportesFinancierosPage = () => {
         const egresosPerc = prevEgresos > 0
           ? ((totalEgresosPeriodo - prevEgresos) / prevEgresos) * 100
           : (totalEgresosPeriodo > 0 ? 100 : 0)
-        setTrendIngresos(Number(ingresosPerc.toFixed(1)))
-        setTrendCobros(Number(cobrosPerc.toFixed(1)))
-        setTrendEgresos(Number(egresosPerc.toFixed(1)))
+        trendIngresos = Number(ingresosPerc.toFixed(1))
+        trendCobros = Number(cobrosPerc.toFixed(1))
+        trendEgresos = Number(egresosPerc.toFixed(1))
       } catch {
-        setTrendIngresos(null)
-        setTrendCobros(null)
-        setTrendEgresos(null)
+        trendIngresos = null
+        trendCobros = null
+        trendEgresos = null
       }
 
       if (periodo === 'DIARIO' || periodo === 'SEMANAL') {
@@ -347,7 +321,7 @@ const ReportesFinancierosPage = () => {
             fecha: toBogotaDateTimeOffsetIso(d)
           }
         })
-        setMonthlyData(series)
+        monthlyData = series
 
         const totalIngresos7 = Object.values(dias).reduce((acc, v) => acc + v.ingresos, 0)
         const totalCobros7 = Object.values(dias).reduce((acc, v) => acc + v.cobros, 0)
@@ -356,6 +330,7 @@ const ReportesFinancierosPage = () => {
         if (periodo === 'SEMANAL') {
           const nowKey7 = getBogotaDateKey(ahora)
           const resumen7 = await getResumenFinanciero(desde7Key, nowKey7)
+          if (!resumen7) throw new Error('No se pudo consultar el resumen de la semana.')
           const ingresosDevengados7 = Number((resumen7)?.ingresosDevengadosHoy ?? totalIngresos7)
           const entradasCaja7 = (Array.isArray(movimientos7Res?.data) ? movimientos7Res.data : [])
             .reduce((acc, movimiento) => acc + Number(movimiento?.impactoCaja || 0), 0)
@@ -368,7 +343,7 @@ const ReportesFinancierosPage = () => {
           )
           const utilidadNeta7 = utilidad7
           const margen7 = ingresosDevengados7 > 0 ? (utilidadOperativa7 / ingresosDevengados7) * 100 : 0
-          setSummary({
+          summary = {
             entradasCaja: entradasCaja7,
             ingresos: totalIngresos7,
             ingresosDevengados: ingresosDevengados7,
@@ -384,7 +359,7 @@ const ReportesFinancierosPage = () => {
             margenArticulos: Number((resumen7)?.margenArticulosHoy || 0),
             otrosIngresos: Number((resumen7)?.otrosIngresosHoy || 0),
             gastosOperativos: totalEgresos7,
-          })
+          }
 
           const prevDesde7Noon = mediodia(m, d - 13)
           const prevFin7Noon = mediodia(m, d - 7)
@@ -420,13 +395,13 @@ const ReportesFinancierosPage = () => {
             const ingresosPerc7 = prevIng7 > 0 ? ((totalIngresos7 - prevIng7) / prevIng7) * 100 : (totalIngresos7 > 0 ? 100 : 0)
             const cobrosPerc7 = prevCobro7 > 0 ? ((totalCobros7 - prevCobro7) / prevCobro7) * 100 : (totalCobros7 > 0 ? 100 : 0)
             const egresosPerc7 = prevEgr7 > 0 ? ((totalEgresos7 - prevEgr7) / prevEgr7) * 100 : (totalEgresos7 > 0 ? 100 : 0)
-            setTrendIngresos(Number(ingresosPerc7.toFixed(1)))
-            setTrendCobros(Number(cobrosPerc7.toFixed(1)))
-            setTrendEgresos(Number(egresosPerc7.toFixed(1)))
+            trendIngresos = Number(ingresosPerc7.toFixed(1))
+            trendCobros = Number(cobrosPerc7.toFixed(1))
+            trendEgresos = Number(egresosPerc7.toFixed(1))
           } catch {
-            setTrendIngresos(null)
-            setTrendCobros(null)
-            setTrendEgresos(null)
+            trendIngresos = null
+            trendCobros = null
+            trendEgresos = null
           }
         }
       } else {
@@ -473,7 +448,7 @@ const ReportesFinancierosPage = () => {
               fecha: v?.fecha || toBogotaDateTimeOffsetIso(d)
             }
           })
-          setMonthlyData(series)
+          monthlyData = series
         } else {
           const monthMap: Record<string, { ingresos: number; cobros: number; egresos: number }> = {}
           const months: { key: string; label: string }[] = []
@@ -509,31 +484,25 @@ const ReportesFinancierosPage = () => {
               yearMonth: m.key
             }
           })
-          setMonthlyData(series)
+          monthlyData = series
         }
       }
 
-    } catch (error) {
-      console.error('Error fetching financial reports:', error)
-    } finally {
-      setLoading(false)
-      setHuboCarga(true)
-    }
+      return { summary, monthlyData, trendIngresos, trendCobros, trendEgresos, metaMargen }
   }, [periodo])
 
-  useEffect(() => {
-    setMounted(true)
-    fetchData()
-  }, [fetchData])
+  const { resultado, cargando: loading, error, recargar: fetchData } = useConsultaPorPeriodo(
+    periodo, consultarReporte, 'No se pudo cargar el reporte financiero.',
+  )
+  const huboCarga = resultado !== null
 
-  // Actualización en tiempo real cuando llegan pagos o transacciones
   useRealtimeData(
     ['pagos_actualizados', 'dashboards_actualizados', 'prestamos_actualizados'],
     fetchData,
   )
 
-  if (!mounted) {
-    return null;
+  if (error && !resultado) {
+    return <PanelDeError titulo="No se pudo cargar el reporte financiero" mensaje={error} onReintentar={fetchData} />
   }
 
   if (loading && !huboCarga) {
@@ -563,13 +532,12 @@ const ReportesFinancierosPage = () => {
     ANUAL: 'year',
   }
 
+  if (!resultado) return null
+  const { summary, monthlyData, trendIngresos, trendCobros, trendEgresos, metaMargen } = resultado.datos
   const actualizando = loading && huboCarga
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
-      {actualizando ? (
-        <AvisoActualizando periodo={PERIODO_PARA_AVISO[periodo]} />
-      ) : null}
       {/* Fondo arquitectónico standard */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
@@ -608,12 +576,16 @@ const ReportesFinancierosPage = () => {
             </div>
             <ExportButton 
               label="Exportar " 
-              onExportExcel={handleExportExcel} 
-              onExportPDF={handleExportPDF} 
+              onExportExcel={loading || error ? undefined : handleExportExcel}
+              onExportPDF={loading || error ? undefined : handleExportPDF}
             />
           </div>
         </header>
 
+        {(actualizando || error) && <AvisoActualizando periodo={PERIODO_PARA_AVISO[periodo]}
+          fallo={error} onReintentar={fetchData} />}
+        <div className={actualizando || error ? 'space-y-8 opacity-60' : 'space-y-8'}
+          aria-busy={actualizando} inert={actualizando || !!error}>
         {/* KPI Cards - Estilo Ultra Clean */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-6">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -860,6 +832,7 @@ const ReportesFinancierosPage = () => {
               }))}
             />
           </div>
+        </div>
         </div>
 
       </div>

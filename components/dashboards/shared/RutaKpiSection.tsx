@@ -2,8 +2,8 @@
 
 import { RutaStatsCards } from '@/components/dashboards/shared/RutaStatsCards'
 import { RolUsuario } from '@/types/enums'
-
-type Periodo = 'HOY' | 'SEM' | 'MES' | 'AÑO'
+import { PERIODO_KPI_RUTA, type PeriodoKpiRuta } from '@/hooks/usePeriodoKpiRuta'
+import ContenidoPorPeriodo from '@/components/ui/ContenidoPorPeriodo'
 
 type RutaStatsLike = {
   recaudo: number
@@ -14,13 +14,16 @@ type RutaStatsLike = {
 }
 
 type Props = {
-  periodo: Periodo
-  onPeriodoChange: (p: Periodo) => void
+  periodo: PeriodoKpiRuta
+  periodoCargado: PeriodoKpiRuta
+  onPeriodoChange: (p: PeriodoKpiRuta) => void
+  error: string | null
+  recargar: () => void
   rutaStats: RutaStatsLike
   userRol?: RolUsuario
 }
 
-export default function RutaKpiSection({ periodo, onPeriodoChange, rutaStats, userRol }: Props) {
+export default function RutaKpiSection({ periodo, periodoCargado, onPeriodoChange, error, recargar, rutaStats, userRol }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -28,6 +31,8 @@ export default function RutaKpiSection({ periodo, onPeriodoChange, rutaStats, us
           {(['HOY', 'SEM', 'MES', 'AÑO'] as const).map((p) => (
             <button
               key={p}
+              type="button"
+              aria-pressed={periodo === p}
               onClick={() => onPeriodoChange(p)}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
                 periodo === p
@@ -41,7 +46,10 @@ export default function RutaKpiSection({ periodo, onPeriodoChange, rutaStats, us
         </div>
       </div>
 
-      <RutaStatsCards rutaStats={rutaStats} periodo={periodo} userRol={userRol} />
+      <ContenidoPorPeriodo periodoMostrado={PERIODO_KPI_RUTA[periodoCargado]} periodo={PERIODO_KPI_RUTA[periodo]} cargando={!error && periodo !== periodoCargado}
+        error={error} recargar={recargar}>
+        <RutaStatsCards rutaStats={rutaStats} periodo={periodoCargado} userRol={userRol} />
+      </ContenidoPorPeriodo>
     </div>
   )
 }
