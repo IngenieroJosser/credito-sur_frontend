@@ -431,7 +431,7 @@ export async function getTransacciones(filtros?: {
   fechaFin?: string
   page?: number
   limit?: number
-}): Promise<PaginatedResponse<Transaccion>> {
+}, opciones?: { propagarError?: boolean }): Promise<PaginatedResponse<Transaccion>> {
   try {
     const params = new URLSearchParams()
     if (filtros?.cajaId) params.append('cajaId', filtros.cajaId)
@@ -446,6 +446,7 @@ export async function getTransacciones(filtros?: {
 
     return await apiRequest<PaginatedResponse<Transaccion>>('GET', url)
   } catch (error) {
+    if (opciones?.propagarError) throw error
     console.error('Error fetching transacciones:', {
       urlRequested: (() => {
         try {

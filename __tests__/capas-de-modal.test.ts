@@ -50,7 +50,7 @@ const ES_PANTALLA_COMPLETA = /fixed[^"'`]*inset-0|inset-0[^"'`]*fixed/
 const FONDO = /bg-(?:slate|black|gray|zinc|neutral|white)[^\s"'`]*\/\d|backdrop-blur/
 const UTILIDAD = /capa-(?:modal-encima|modal|accion|tooltip|aviso|alerta)/
 const POR_STYLE =
-  /zIndex:\s*(?:capa|MODAL_Z_INDEX|MODAL_ENCIMA_Z_INDEX|ACCION_Z_INDEX|TOOLTIP_Z_INDEX|TOAST_Z_INDEX|ALERT_Z_INDEX)\b/
+  /zIndex:\s*(?:(?:\w+\.)?capa|MODAL_Z_INDEX|MODAL_ENCIMA_Z_INDEX|ACCION_Z_INDEX|TOOLTIP_Z_INDEX|TOAST_Z_INDEX|ALERT_Z_INDEX)\b/
 
 /** Con su motivo, como el resto de las excepciones del proyecto. */
 const EXCEPCIONES = new Map<string, string>([
@@ -132,7 +132,7 @@ describe('cada modal dice en qué capa va', () => {
           '',
           'Pon `capa-modal` —o `capa-modal-encima` si se abre DENTRO de otro',
           'modal— en el elemento a pantalla completa, o',
-          '`style={{ zIndex: capa }}` con la `capa` que devuelve',
+          '`style={{ zIndex: capa }}` o `dialogo.capa` con la capa que devuelve',
           '`useModalDialog`: sale de la pila de modales abiertos y deja cada',
           'uno delante del que lo abrió sin que nadie elija un número.',
         ].join('\n')

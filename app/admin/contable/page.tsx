@@ -5,6 +5,8 @@ import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
 import { avisoDeCifraIncompleta } from '@/lib/contable/cifras-completas'
 import { formatearImportesEnConcepto } from '@/lib/contable/importes-en-concepto'
+import { deltaDeCaja } from '@/lib/contable/flujo-de-caja'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 /**
  * ============================================================================
@@ -429,6 +431,22 @@ const ModuloContableContent = () => {
   const [showDetalleModal, setShowDetalleModal] = useState(false)
   const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | 'CUOTAS_INICIALES' | 'UTILIDAD' | 'CIERRES' | 'CIERRES_RUTA' | 'CAJA_TODOS' | null>(null)
   const [detalleCajaFocus, setDetalleCajaFocus] = useState<'RECAUDO' | 'GASTOS' | null>(null)
+  const [estadoMovimientosCaja, setEstadoMovimientosCaja] =
+    useState<{ cargando?: boolean; error?: boolean; aviso?: string | null }>({})
+
+  const cerrarMovimientos = () => {
+    setShowDetalleModal(false)
+    setMovimientosDetalle([])
+    setEstadoMovimientosCaja({})
+    setDetalleCajaFocus(null)
+  }
+  const cerrarCaja = () => {
+    setShowVerCajaModal(false)
+    setCajaSeleccionada(null)
+    setSaldoRutaSeleccionada(null)
+  }
+  const dialogoCaja = useModalDialog({ abierto: showVerCajaModal && !!cajaSeleccionada, onClose: cerrarCaja })
+  const dialogoMovimientos = useModalDialog({ abierto: showDetalleModal, onClose: cerrarMovimientos })
 
   const [resumenUtilidadModal, setResumenUtilidadModal] = useState<{
     totalUtilidad: number
@@ -578,44 +596,20 @@ const ModuloContableContent = () => {
     return { inicio: min ?? hoy, fin: hoy }
   }
 
-  const loadMovimientosDetalle = async (opts?: { cajaId?: string; fechaInicio?: string; fechaFin?: string }) => {
-    const cajaId = opts?.cajaId ?? cajaSeleccionada?.id
-    if (!cajaId) {
-      setMovimientosDetalle([])
-      return
-    }
-    try {
-      // Los dos getters declaran su filtro: el tipo se DERIVA de ellos. Son
-      // compatibles porque este `params` se pasa a los dos (ledger y legacy).
-      const params: Parameters<typeof getMovimientosLedger>[0] &
-        Parameters<typeof getTransacciones>[0] = { cajaId, limit: 500 }
-      const inicio = opts?.fechaInicio ?? fechaInicioModal
-      const fin = opts?.fechaFin ?? fechaFinModal
-      if (inicio) params.fechaInicio = inicio
-      if (fin) params.fechaFin = fin
-      const resp = await getMovimientosLedger(params)
-      if (resp && Array.isArray(resp.data)) {
-        let next = listaDeRespuesta(resp).map(mapMovimientoLedger)
-
-        if (next.length === 0) {
-          const legacyResp = await getTransacciones(params)
-          next = Array.isArray(legacyResp?.data) ? listaDeRespuesta(legacyResp).map(mapTransaccion) : []
-        }
-
-        const codigoCaja = String((cajaSeleccionada)?.codigo || '').toUpperCase()
-        if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
-          next = next.filter((m: MovimientoContable) => {
-            const ref = String(m?.tipoReferencia || '').toUpperCase()
-            return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
-          })
-        }
-
-        setMovimientosDetalle(next)
-      } else {
-        setMovimientosDetalle([])
+  const loadMovimientosDetalle = async (cajaId: string, fechaInicio: string, fechaFin: string) => {
+    const params = { cajaId, fechaInicio, fechaFin, limit: 500 }
+    const libro = await getMovimientosLedger(params, { propagarError: true })
+    if (libro.data.length > 0) {
+      return {
+        movimientos: libro.data.map(mapMovimientoLedger),
+        aviso: avisoDeCifraIncompleta(libro),
       }
-    } catch {
-      setMovimientosDetalle([])
+    }
+
+    const transacciones = await getTransacciones(params, { propagarError: true })
+    return {
+      movimientos: listaDeRespuesta(transacciones).map(mapTransaccion),
+      aviso: avisoDeCifraIncompleta(transacciones),
     }
   }
 
@@ -887,30 +881,25 @@ const ModuloContableContent = () => {
 
   const historialDeResultados = !cajaSeleccionada && (detalleTipo === 'INGRESOS' || detalleTipo === 'EGRESOS')
 
-  // Modal de caja: al cambiar fechas, recargar transacciones de esa caja.
+  const movimientosDeCaja = detalleTipo === 'CAJA_TODOS' && !!cajaSeleccionada
+  const estadoDetalle = movimientosDeCaja ? estadoMovimientosCaja : historialDeResultados ? estadoHistorial : null
+  const cajaMovimientosId = movimientosDeCaja ? cajaSeleccionada?.id : undefined
+
   useEffect(() => {
-    if (!showDetalleModal) return
-    if (!cajaSeleccionada) return
-    if (!fechaInicioModal || !fechaFinModal) return
-
-    let cancelled = false
-
-    ;(async () => {
-      try {
-        await loadMovimientosDetalle({
-          cajaId: cajaSeleccionada.id,
-          fechaInicio: fechaInicioModal,
-          fechaFin: fechaFinModal,
-        })
-      } catch {
-        if (cancelled) return
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [showDetalleModal, cajaSeleccionada?.id, fechaInicioModal, fechaFinModal])
+    if (!showDetalleModal || !cajaMovimientosId) return
+    let vigente = true
+    setEstadoMovimientosCaja({ cargando: true })
+    setMovimientosDetalle([])
+    void loadMovimientosDetalle(cajaMovimientosId, fechaInicioModal, fechaFinModal)
+      .then(({ movimientos, aviso }) => {
+        if (!vigente) return
+        setMovimientosDetalle(movimientos)
+        setEstadoMovimientosCaja({ aviso })
+      }).catch(() => {
+        if (vigente) setEstadoMovimientosCaja({ error: true })
+      })
+    return () => { vigente = false }
+  }, [showDetalleModal, cajaMovimientosId, fechaInicioModal, fechaFinModal])
 
   useEffect(() => {
     if (!showDetalleModal) return
@@ -1271,6 +1260,36 @@ const ModuloContableContent = () => {
   }
 
 
+
+  const movimientosVisibles = showDetalleModal
+    ? (movimientosDeCaja ? movimientosDetalle : movimientosModalGlobal).filter((movimiento) => {
+        const fecha = normalizeDateKey(movimiento.fecha)
+        if (fechaInicioModal && fecha < fechaInicioModal) return false
+        if (fechaFinModal && fecha > fechaFinModal) return false
+        if (['ANULADO', 'RECHAZADO'].includes(String(movimiento.estado).toUpperCase())) return false
+
+        if (movimientosDeCaja) {
+          if (movimiento.cajaId !== cajaMovimientosId) return false
+          const delta = deltaDeCaja(movimiento)
+          if (delta === null || delta === 0) return false
+          if (detalleCajaFocus === 'RECAUDO') return delta > 0
+          if (detalleCajaFocus === 'GASTOS') return delta < 0
+          return true
+        }
+
+        if (movimiento.categoria === 'CONSOLIDACION') return false
+        if (detalleTipo === 'INGRESOS') return esIngresoContable(movimiento)
+        if (detalleTipo === 'CUOTAS_INICIALES') return esCuotaInicialContable(movimiento)
+        if (detalleTipo === 'UTILIDAD') {
+          return esEgresoOperativo(movimiento) || (
+            movimiento.tipo === 'TRANSFERENCIA' &&
+            movimiento.tipoReferencia?.toUpperCase() === 'RECOLECCION' &&
+            movimiento.concepto?.toUpperCase().includes('RECIBIDA')
+          )
+        }
+        return esEgresoOperativo(movimiento)
+      })
+    : []
 
   if (isLoading) {
     /*
@@ -1869,119 +1888,25 @@ const ModuloContableContent = () => {
                               setVerCajaRangoStats(null)
                             }
 
-                            if (c.tipo === 'RUTA') {
-                              if (c.rutaId) {
-                                try {
-                                  const hoy = getBogotaDateKey(new Date())
-                                  const saldoRuta = await obtenerSaldoDisponibleRuta(c.rutaId, hoy)
-
-                                  setSaldoRutaSeleccionada(saldoRuta || null)
-                                  setCajaHoyStats(null)
-                                } catch {
-                                  setSaldoRutaSeleccionada(null)
-                                  setCajaHoyStats(null)
-                                }
+                            setSaldoRutaSeleccionada(null)
+                            setCajaHoyStats(null)
+                            const hoy = getBogotaDateKey(new Date())
+                            try {
+                              if (c.tipo === 'RUTA' && c.rutaId) {
+                                setSaldoRutaSeleccionada(await obtenerSaldoDisponibleRuta(c.rutaId, hoy))
                               } else {
-                                // Caja propia de supervisor: no tiene rutaId, se calcula por transacciones de la caja.
-                                setSaldoRutaSeleccionada(null)
-
-                                try {
-                                  const hoyClave = getBogotaDateKey(new Date())
-
-                                  const resp = await getTransacciones({
-                                    cajaId: c.id,
-                                    fechaInicio: hoyClave,
-                                    fechaFin: hoyClave,
-                                    limit: 500,
-                                  })
-                                  setCifraIncompleta(
-                                    (previo) =>
-                                      previo || avisoDeCifraIncompleta(resp),
-                                  )
-
-                                  const movimientosCaja = Array.isArray(resp?.data)
-                                    ? listaDeRespuesta(resp).map(mapTransaccion)
-                                    : []
-
-                                  const ingresos = movimientosCaja
-                                    .filter((m: MovimientoContable) => {
-                                      const tipo = String(m.tipo || '').toUpperCase()
-                                      const numero = String(m.numero || '').toUpperCase()
-
-                                      if (tipo === 'INGRESO') return true
-                                      if (tipo === 'TRANSFERENCIA') return numero.startsWith('TRX-IN')
-
-                                      return false
-                                    })
-                                    .reduce((acc: number, m) => acc + Number(m.monto || 0), 0)
-
-                                  const egresos = movimientosCaja
-                                    .filter((m: MovimientoContable) => {
-                                      const tipo = String(m.tipo || '').toUpperCase()
-                                      const numero = String(m.numero || '').toUpperCase()
-
-                                      if (tipo === 'EGRESO') return true
-                                      if (tipo === 'TRANSFERENCIA') return numero.startsWith('TRX-OUT')
-
-                                      return false
-                                    })
-                                    .reduce((acc: number, m) => acc + Number(m.monto || 0), 0)
-
-                                  setCajaHoyStats({ ingresos, egresos })
-                                } catch {
-                                  setCajaHoyStats({ ingresos: 0, egresos: 0 })
-                                }
+                                const { movimientos, aviso } = await loadMovimientosDetalle(c.id, hoy, hoy)
+                                setCifraIncompleta((previo) => previo || aviso)
+                                setCajaHoyStats(movimientos.reduce((totales, movimiento) => {
+                                  if (movimiento.cajaId !== c.id || movimiento.estado === 'RECHAZADO') return totales
+                                  const delta = deltaDeCaja(movimiento) ?? 0
+                                  if (delta > 0) totales.ingresos += delta
+                                  if (delta < 0) totales.egresos -= delta
+                                  return totales
+                                }, { ingresos: 0, egresos: 0 }))
                               }
-                            } else {
-                              setSaldoRutaSeleccionada(null)
-                              setCajaHoyStats(null)
-                              try {
-                                const hoyClave = getBogotaDateKey(new Date())
-
-                                const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 }
-                                const resp = await getTransacciones(params)
-                                setCifraIncompleta(
-                                  (previo) => previo || avisoDeCifraIncompleta(resp),
-                                )
-                                if (resp && Array.isArray(resp.data)) {
-                                  const codigoCaja = String((c)?.codigo || '').toUpperCase()
-                                  const omitRefs = codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO'
-
-                                  const base = listaDeRespuesta(resp).filter((m: ApiTransaccion) => {
-                                    if (!omitRefs) return true
-                                    const ref = String(m?.tipoReferencia || '').toUpperCase()
-                                    return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
-                                  })
-
-                                  const ingresos = base
-                                    .filter((m: ApiTransaccion) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
-                                    .filter((m: ApiTransaccion) => {
-                                      if (m.tipo === 'TRANSFERENCIA') {
-                                        const num = String(m.numero || '').toUpperCase()
-                                        return num.startsWith('TRX-IN')
-                                      }
-                                      return true
-                                    })
-                                    .reduce((acc: number, m) => acc + Number(m.monto), 0)
-
-                                  const egresos = base
-                                    .filter((m: ApiTransaccion) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
-                                    .filter((m: ApiTransaccion) => {
-                                      if (m.tipo === 'TRANSFERENCIA') {
-                                        const num = String(m.numero || '').toUpperCase()
-                                        return num.startsWith('TRX-OUT')
-                                      }
-                                      return true
-                                    })
-                                    .reduce((acc: number, m) => acc + Number(m.monto), 0)
-
-                                  setCajaHoyStats({ ingresos, egresos })
-                                } else {
-                                  setCajaHoyStats(null)
-                                }
-                              } catch {
-                                setCajaHoyStats(null)
-                              }
+                            } catch {
+                              // Un fallo de consulta no equivale a una caja sin movimientos.
                             }
 
                             setShowVerCajaModal(true)
@@ -2743,15 +2668,17 @@ const ModuloContableContent = () => {
 
 
         {showVerCajaModal && cajaSeleccionada && renderInPortal(
-          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowVerCajaModal(false)}>
-            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
+            style={{ zIndex: dialogoCaja.capa }} onClick={(e) => dialogoCaja.alTocarElFondo(e, showDetalleModal)}>
+            <div ref={dialogoCaja.contenedorRef} {...dialogoCaja.propsDialogo} aria-labelledby="titulo-detalle-caja"
+              inert={showDetalleModal} className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl bg-white border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div className="min-w-0">
-                    <h3 className="text-lg font-bold text-slate-900">Detalle de Caja</h3>
+                    <h3 id="titulo-detalle-caja" className="text-lg font-bold text-slate-900">Detalle de Caja</h3>
                     {/* <p className="text-xs font-bold text-slate-500">{cajaSeleccionada.id}</p> */}
                 </div>
                 <button aria-label="Cerrar"
-                  onClick={() => setShowVerCajaModal(false)}
+                  onClick={cerrarCaja}
                   className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
@@ -2874,7 +2801,6 @@ const ModuloContableContent = () => {
                             setDetalleTipo('CAJA_TODOS');
                             setDetalleCajaFocus('RECAUDO')
                             setShowDetalleModal(true);
-                            void loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
                         }}
                         className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 cursor-pointer hover:bg-emerald-100/80 transition-colors group"
                       >
@@ -2907,7 +2833,7 @@ const ModuloContableContent = () => {
                              }
 
                              return (
-                               <div className="text-emerald-700 font-semibold text-xs mt-1">Cargando…</div>
+                               <div className="text-emerald-700 font-semibold text-xs mt-1">No disponible</div>
                              )
                            })()}
                          </div>
@@ -2922,7 +2848,6 @@ const ModuloContableContent = () => {
                           setDetalleTipo('CAJA_TODOS');
                           setDetalleCajaFocus('GASTOS')
                           setShowDetalleModal(true);
-                          void loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
                       }}
                       className="bg-rose-50 p-4 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100/80 transition-colors group"
                     >
@@ -2954,7 +2879,7 @@ const ModuloContableContent = () => {
                                  )
                                }
                                return (
-                                 <div className="text-rose-700 font-semibold text-xs mt-1">Cargando...</div>
+                                 <div className="text-rose-700 font-semibold text-xs mt-1">No disponible</div>
                                )
                               })()}
                          </div>
@@ -2994,10 +2919,7 @@ const ModuloContableContent = () => {
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
 
                 <button
-                  onClick={() => {
-                    setShowVerCajaModal(false)
-                    setSaldoRutaSeleccionada(null)
-                  }}
+                  onClick={cerrarCaja}
                   className="px-6 py-2 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
                 >
                   Cerrar
@@ -3009,12 +2931,14 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}>
-            <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
+            style={{ zIndex: dialogoMovimientos.capa }} onClick={(e) => dialogoMovimientos.alTocarElFondo(e, false)}>
+            <div ref={dialogoMovimientos.contenedorRef} {...dialogoMovimientos.propsDialogo} aria-labelledby="titulo-historial-contable"
+              className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90dvh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div className="min-w-0">
-                   <h3 className="text-lg font-bold text-slate-900">
+                   <h3 id="titulo-historial-contable" className="text-lg font-bold text-slate-900">
                       {detalleTipo === 'INGRESOS'
                         ? 'Historial de Ingresos'
                         : detalleTipo === 'EGRESOS'
@@ -3035,7 +2959,7 @@ const ModuloContableContent = () => {
                     </p>
                 </div>
                 <button aria-label="Cerrar"
-                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}
+                  onClick={cerrarMovimientos}
                   className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
                 >
                   <XCircle className="h-6 w-6" />
@@ -3045,8 +2969,8 @@ const ModuloContableContent = () => {
               {/* Modal Content */}
               <div className="p-6 overflow-y-auto custom-scrollbar">
                   <div className="space-y-6">
-                    {historialDeResultados && estadoHistorial.aviso && (
-                      <p role="status" className="text-sm text-amber-800">{estadoHistorial.aviso}</p>
+                    {estadoDetalle?.aviso && (
+                      <p role="status" className="text-sm text-amber-800">{estadoDetalle.aviso}</p>
                     )}
                     {/* Resumen Total Header */}
                     {detalleTipo === 'CIERRES' ? (
@@ -3122,68 +3046,10 @@ const ModuloContableContent = () => {
                                        : "text-indigo-800"
                                )}>
                                  {(() => {
-                                    if (historialDeResultados && estadoHistorial.cargando) return 'Consultando…'
-                                    if (historialDeResultados && estadoHistorial.error) return 'No disponible'
+                                    if (estadoDetalle?.cargando) return 'Consultando…'
+                                    if (estadoDetalle?.error) return 'No disponible'
                                     const hoyKey = getBogotaDateKey(new Date())
-                                    const source = cajaSeleccionada ? movimientosDetalle : movimientosModalGlobal
-                                    const filtered = source
-                                        .filter(m => {
-                                            if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
-                                            return true;
-                                        })
-                                        .filter(m => {
-                                            if (cajaSeleccionada && detalleCajaFocus) {
-                                              const conc = String(m.concepto || '').toUpperCase()
-                                              const ref = String(m.tipoReferencia || '').toUpperCase()
-                                              const tipoMovimiento = String(m.tipo || '').toUpperCase()
-                                              const esTransferencia = tipoMovimiento === 'TRANSFERENCIA'
-                                              const esIngreso = tipoMovimiento === 'INGRESO'
-                                              const esEgreso = tipoMovimiento === 'EGRESO'
-
-                                              const esTransferenciaEntrada =
-                                                esTransferencia &&
-                                                ((ref === 'RECOLECCION' && conc.includes('RECIBIDA')) ||
-                                                  (ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA')))
-
-                                              const esTransferenciaSalida =
-                                                esTransferencia &&
-                                                (conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'))
-
-                                              if (detalleCajaFocus === 'RECAUDO') {
-                                                return esIngreso || esTransferenciaEntrada
-                                              }
-
-                                              if (detalleCajaFocus === 'GASTOS') {
-                                                if (ref === 'DEUDA_COBRADOR') return false
-                                                return esEgreso || esTransferenciaSalida
-                                              }
-                                            }
-
-                                            if (detalleTipo === 'CAJA_TODOS') {
-                                              return true
-                                            } else if (detalleTipo === 'INGRESOS') {
-                                              return esIngresoContable(m);
-                                            } else if (detalleTipo === 'CUOTAS_INICIALES') {
-                                              return esCuotaInicialContable(m)
-                                            } else if (detalleTipo === 'UTILIDAD') {
-                                              const esIngresoRecoleccion =
-                                                m.tipo === 'TRANSFERENCIA' &&
-                                                String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                                String(m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                              return esIngresoRecoleccion || esEgresoOperativo(m)
-                                            } else {
-                                              return esEgresoOperativo(m);
-                                            }
-                                        })
-                                        .filter(m => {
-                                            if (fechaInicioModal || fechaFinModal) {
-                                                const fechaM = normalizeDateKey(m.fecha);
-                                                if (fechaInicioModal && fechaM < fechaInicioModal) return false;
-                                                if (fechaFinModal && fechaM > fechaFinModal) return false;
-                                                return true;
-                                            }
-                                            return true;
-                                        });
+                                    const filtered = movimientosVisibles
                                     const total = (() => {
                                       if (
                                         !cajaSeleccionada &&
@@ -3194,21 +3060,10 @@ const ModuloContableContent = () => {
                                         if (detalleTipo === 'UTILIDAD') return Number(resumenData.utilidadNeta || 0)
                                       }
 
-                                      if (detalleCajaFocus === 'RECAUDO' || detalleCajaFocus === 'GASTOS') {
-                                        return filtered.reduce((acc, m) => acc + Number(m.monto || 0), 0)
-                                      }
-
-                                      if (detalleTipo === 'CAJA_TODOS') {
+                                      if (movimientosDeCaja) {
                                         return filtered.reduce((acc, m) => {
-                                          const monto = Number(m.monto || 0)
-                                          const tipo = String((m)?.tipo || '').toUpperCase()
-                                          const numero = String(m?.numero || '')
-                                          if (tipo === 'INGRESO') return acc + monto
-                                          if (tipo === 'EGRESO') return acc - monto
-                                          if (tipo === 'TRANSFERENCIA') {
-                                            return numero.toUpperCase().startsWith('TRX-OUT') ? acc - monto : acc + monto
-                                          }
-                                          return acc
+                                          const delta = deltaDeCaja(m) ?? 0
+                                          return acc + (detalleCajaFocus ? Math.abs(delta) : delta)
                                         }, 0)
                                       }
 
@@ -3228,17 +3083,6 @@ const ModuloContableContent = () => {
                                       return ingresos - egresos
                                     })()
 
-                                    if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada && total === 0) {
-                                      if (detalleTipo === 'INGRESOS') {
-                                        const valor = saldoRutaSeleccionada.recaudoDelDia ||
-                                                      saldoRutaSeleccionada.saldoCaja ||
-                                                      cajaSeleccionada.saldo;
-                                        if (valor > 0) return formatCurrency(valor);
-                                      } else {
-                                        const valor = saldoRutaSeleccionada.gastosDelDia;
-                                        if (valor > 0) return formatCurrency(valor);
-                                      }
-                                    }
 
                                     return formatCurrency(total);
                                  })()}
@@ -3346,6 +3190,7 @@ const ModuloContableContent = () => {
                                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Desde</label>
                                                                 <CampoFecha
                                   value={fechaInicioModal}
+                                  etiqueta="Desde"
                                   onChange={(valorFecha) => setFechaInicioModal(valorFecha)}
                                   className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-100 outline-none"
                                 />
@@ -3354,6 +3199,7 @@ const ModuloContableContent = () => {
                                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Hasta</label>
                                                                 <CampoFecha
                                   value={fechaFinModal}
+                                  etiqueta="Hasta"
                                   onChange={(valorFecha) => setFechaFinModal(valorFecha)}
                                   className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-100 outline-none"
                                 />
@@ -3370,7 +3216,7 @@ const ModuloContableContent = () => {
                                  : 'Historial de Movimientos'}
                            </h4>
                            <span className="text-xs font-medium text-slate-400">
-                              {historialDeResultados && (estadoHistorial.cargando || estadoHistorial.error)
+                              {(estadoDetalle?.cargando || estadoDetalle?.error)
                                  ? '—'
                                  : detalleTipo === 'CIERRES'
                                  ? historialCierres.length
@@ -3380,73 +3226,9 @@ const ModuloContableContent = () => {
                                         if (!cajaId) return 0
                                         return historialCierres.filter((c) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
                                       })()
-                                  : (() => {
-                                      const base = cajaSeleccionada ? movimientosDetalle : movimientosModalGlobal;
-                                     const filtrados = base
-                                       .filter(m => {
-                                         if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
-                                         return true;
-                                       })
-                                       .filter(m => {
-                                         if (cajaSeleccionada && detalleCajaFocus) {
-                                          const conc = String(m.concepto || '').toUpperCase();
-                                          const ref = String(m.tipoReferencia || '').toUpperCase();
-
-                                          const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
-                                          const esIngreso = String(m.tipo || '').toUpperCase() === 'INGRESO'
-                                          const esEgreso = String(m.tipo || '').toUpperCase() === 'EGRESO'
-
-                                          const esTransferenciaEntrada =
-                                            esTransferencia &&
-                                            ((ref === 'RECOLECCION' && conc.includes('RECIBIDA')) ||
-                                              (ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA')))
-
-                                          const esTransferenciaSalida =
-                                            esTransferencia &&
-                                            (conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'))
-
-                                          if (detalleCajaFocus === 'RECAUDO') {
-                                            return esIngreso || esTransferenciaEntrada
-                                          }
-
-                                          if (detalleCajaFocus === 'GASTOS') {
-                                            if (ref === 'DEUDA_COBRADOR') return false
-                                            return esEgreso || esTransferenciaSalida
-                                          }
-                                        }
-
-                                        if (detalleTipo === 'CAJA_TODOS') {
-                                          return true
-                                        }
-                                        if (detalleTipo === 'INGRESOS') {
-                                          return esIngresoContable(m);
-                                        } else if (detalleTipo === 'CUOTAS_INICIALES') {
-                                          return esCuotaInicialContable(m)
-                                        } else if (detalleTipo === 'UTILIDAD') {
-                                          const esIngresoRecoleccion =
-                                            m.tipo === 'TRANSFERENCIA' &&
-                                            String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                            String(m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                           return esIngresoRecoleccion || esEgresoOperativo(m)
-                                         } else {
-                                           return esEgresoOperativo(m);
-                                         }
-                                       })
-                                       .filter(m => {
-                                         const est = String(m.estado || '').toUpperCase()
-                                         return est !== 'ANULADO' && est !== 'RECHAZADO'
-                                       })
-                                       .filter(m => {
-                                         if (fechaInicioModal || fechaFinModal) {
-                                           const fechaM = normalizeDateKey(m.fecha);
-                                           if (fechaInicioModal && fechaM < fechaInicioModal) return false;
-                                           if (fechaFinModal && fechaM > fechaFinModal) return false;
-                                           return true;
-                                         }
-                                         return true;
-                                       });
-                                     return filtrados.length;
-                                   })()} {detalleTipo === 'CIERRES' ? 'consolidaciones' : detalleTipo === 'CIERRES_RUTA' ? 'cierres' : 'registros'}
+                                  : movimientosVisibles.length} {detalleTipo === 'CIERRES' ? 'consolidaciones'
+                                    : detalleTipo === 'CIERRES_RUTA' ? 'cierres'
+                                      : movimientosVisibles.length === 1 ? 'registro' : 'registros'}
                           </span>
                        </div>
                        
@@ -3562,91 +3344,20 @@ const ModuloContableContent = () => {
                              })
                            })()}
                          </div>
-                       ) : historialDeResultados && estadoHistorial.cargando ? (
+                       ) : estadoDetalle?.cargando ? (
                          <p role="status" className="py-4 text-sm text-slate-600">Consultando movimientos…</p>
-                       ) : historialDeResultados && estadoHistorial.error ? (
+                       ) : estadoDetalle?.error ? (
                          <p role="alert" className="py-4 text-sm text-red-700">No se pudo cargar el historial de movimientos.</p>
+                       ) : movimientosVisibles.length === 0 ? (
+                         <p className="py-4 text-sm text-slate-600">
+                           {movimientosDeCaja && detalleCajaFocus === 'RECAUDO' ? 'No hay entradas de caja en el rango.'
+                             : movimientosDeCaja && detalleCajaFocus === 'GASTOS' ? 'No hay salidas de caja en el rango.'
+                               : detalleTipo === 'INGRESOS' ? 'No hay ingresos contables en el rango.'
+                                 : 'No hay movimientos en el rango.'}
+                         </p>
                        ) : (
                          <>
-                          {(cajaSeleccionada ? movimientosDetalle : movimientosModalGlobal)
-                            .filter(m => {
-                              if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
-                              if (cajaSeleccionada && detalleCajaFocus) {
-                                const conc = String(m.concepto || '').toUpperCase();
-                                const ref = String(m.tipoReferencia || '').toUpperCase();
-
-                                const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
-                                const esIngreso = String(m.tipo || '').toUpperCase() === 'INGRESO'
-                                const esEgreso = String(m.tipo || '').toUpperCase() === 'EGRESO'
-
-                                const esTransferenciaEntrada =
-                                  esTransferencia &&
-                                  ((ref === 'RECOLECCION' && conc.includes('RECIBIDA')) ||
-                                    (ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA')))
-
-                                const esTransferenciaSalida =
-                                  esTransferencia &&
-                                  (conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'))
-
-                                if (detalleCajaFocus === 'RECAUDO') {
-                                  return esIngreso || esTransferenciaEntrada
-                                }
-
-                                if (detalleCajaFocus === 'GASTOS') {
-                                  if (ref === 'DEUDA_COBRADOR') return false
-                                  return esEgreso || esTransferenciaSalida
-                                }
-                              }
-                             if (detalleTipo === 'CAJA_TODOS') {
-                               return true
-                             }
-                             if (detalleTipo === 'INGRESOS') {
-                                return esIngresoContable(m);
-                              } else if (detalleTipo === 'CUOTAS_INICIALES') {
-                                return esCuotaInicialContable(m)
-                              } else if (detalleTipo === 'UTILIDAD') {
-                                const esIngresoRecoleccion =
-                                  m.tipo === 'TRANSFERENCIA' &&
-                                  String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                  String(m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                return esIngresoRecoleccion || esEgresoOperativo(m)
-                              } else {
-                                return esEgresoOperativo(m);
-                              }
-                            })
-                            .filter(m => {
-                              const est = String(m.estado || '').toUpperCase()
-                              return est !== 'ANULADO' && est !== 'RECHAZADO'
-                            })
-                            .filter(m => {
-                              if (cajaSeleccionada) {
-                                return m.cajaId === cajaSeleccionada.id;
-                              }
-                              
-                              if (fechaInicioModal || fechaFinModal) {
-                                const fechaM = normalizeDateKey(m.fecha);
-                                if (fechaInicioModal && fechaM < fechaInicioModal) return false;
-                                if (fechaFinModal && fechaM > fechaFinModal) return false;
-                                return true;
-                              }
-                              
-                              return true;
-                            })
-                            .filter(m => {
-                              if (detalleTipo === 'INGRESOS' || detalleTipo === 'EGRESOS') {
-                                if (m.tipo === 'TRANSFERENCIA') {
-                                  const ref = String(m.tipoReferencia || '').toUpperCase()
-                                  if (ref === 'TRANSFERENCIA_INTERNA') return true
-                                  const conc = String(m.concepto || '').toUpperCase()
-                                  if (detalleTipo === 'INGRESOS') {
-                                    return conc.includes('RECIBIDA')
-                                  }
-                                  return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
-                                }
-                                return true
-                              }
-                              return true
-                            })
+                          {movimientosVisibles
                             .map((m) => {
                               let conceptoMostrar = normalizarConceptoContable(m.concepto, m);
                               const esRegularizado = esMovimientoPagoRegularizado(m)
@@ -3663,19 +3374,11 @@ const ModuloContableContent = () => {
                                 }
                                 if (detalleTipo === 'EGRESOS') return false
                                 if (detalleTipo === 'UTILIDAD') return esIngresoRecoleccion
-                                if (detalleTipo === 'CAJA_TODOS') {
-                                  if (m.tipo === 'EGRESO') return false
-                                  if (m.tipo === 'TRANSFERENCIA') {
-                                    const numero = String((m).numero || '')
-                                    const esSalida = numero.toUpperCase().startsWith('TRX-OUT')
-                                    return !esSalida
-                                  }
-                                  return true
-                                }
+                                if (movimientosDeCaja) return (deltaDeCaja(m) ?? 0) > 0
                                 return false
                               })()
                               
-                              if (m.tipo === 'TRANSFERENCIA' || m.categoria === 'CONSOLIDACION') {
+                              if (!movimientosDeCaja && (m.tipo === 'TRANSFERENCIA' || m.categoria === 'CONSOLIDACION')) {
                                 if (detalleTipo === 'INGRESOS' || detalleTipo === 'CUOTAS_INICIALES') {
                                   conceptoMostrar = `Ingreso de: ${m.concepto.match(/desde (.*?)[:\(]/i)?.[1] || m.concepto.match(/de (.*?)($|[:\(])/i)?.[1] || 'Caja Origen'}`;
                                 } else if (detalleTipo === 'UTILIDAD' && isPositivo) {
@@ -3700,7 +3403,7 @@ const ModuloContableContent = () => {
                                       )} />
                                       <div>
                                         <div className="font-bold text-slate-900 text-base leading-snug">
-                                          {conceptoMostrar.replace(/\$(\d+)/g, (match, p1) => formatCurrency(Number(p1)))}
+                                          {formatearImportesEnConcepto(conceptoMostrar)}
                                         </div>
                                         {esRegularizado && (
                                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -3718,7 +3421,7 @@ const ModuloContableContent = () => {
                                       "font-black text-lg tabular-nums tracking-tight whitespace-nowrap",
                                       isPositivo ? "text-emerald-700" : "text-rose-700"
                                     )}>
-                                      {isPositivo ? '+' : '-'}{formatCurrency(m.monto)}
+                                      {isPositivo ? '+' : '-'}{formatCurrency(movimientosDeCaja ? Math.abs(deltaDeCaja(m) ?? 0) : m.monto)}
                                     </div>
                                   </div>
                                   
