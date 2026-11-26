@@ -7,36 +7,35 @@ import { formatFechaBogota } from '@/lib/format-date'
  * Modal dedicado para visualizar el detalle completo de una solicitud de
  * Prórroga o Gestión de Cuenta Vencida (CASTIGAR / DEJAR_QUIETO) en el
  * módulo de Revisiones.
- *
- * Muestra: cliente, número de préstamo, saldo pendiente, tipo de decisión,
- * días de gracia, fecha original → nueva fecha, monto de interés adicional,
- * observaciones y quién lo solicitó.
  */
 
-import React from 'react'
+import React, { useId } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  X, User, Calendar, Clock, DollarSign,
+  User, Calendar, Clock, DollarSign,
   MessageSquare, CalendarClock, CheckCircle2, XCircle, Loader2,
   TrendingDown, FileX
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import Tooltip from '@/components/ui/Tooltip'
 import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
-import { useModalDialog } from '@/hooks/use-modal-dialog'
-import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
-
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import CabeceraModal, { type tonosModal } from '@/components/ui/CabeceraModal'
+import {
+  BARRA_DE_ARRASTRE,
+  CUERPO_HOJA_MODAL,
+  FONDO_HOJA_MODAL,
+  PANEL_HOJA_MODAL,
+  PIE_HOJA_MODAL,
+} from '@/lib/ui/hoja-modal'
 import AyudaContextual from '@/components/ui/AyudaContextual'
+
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
 export interface ProrrogaData {
-  // Identificación
   id: string
   solicitante?: string
   creadoEn?: string
   estado?: string
-
-  // Datos de la solicitud (vienen de datosSolicitud del backend)
   decision?: 'PRORROGAR' | 'CASTIGAR' | 'DEJAR_QUIETO'
   cliente?: string
   clienteNombre?: string
@@ -87,35 +86,35 @@ function formatFechaHora(iso: string | null | undefined) {
 
 // ── Config visual por tipo de decisión ───────────────────────────────────────
 
-const DECISION_CONFIG = {
+const DECISION_CONFIG: Record<'PRORROGAR' | 'CASTIGAR' | 'DEJAR_QUIETO', {
+  label: string
+  tono: keyof typeof tonosModal
+  section: string
+  text: string
+  icon: typeof CalendarClock
+}> = {
   PRORROGAR: {
     label:   DECISIONES_CUENTA_VENCIDA.PRORROGAR.label,
-    badge:   'bg-blue-100 text-blue-800 border-blue-200',
-    header:  'from-primary to-blue-800',
-    section: 'bg-blue-50/60 border-blue-200',
-    text:    'text-blue-700',
-    accent:  'border-blue-400',
+    tono:    'cielo',
+    section: 'bg-sky-50/60 border-sky-200',
+    text:    'text-sky-800',
     icon:    CalendarClock,
   },
   CASTIGAR: {
     label:   DECISIONES_CUENTA_VENCIDA.CASTIGAR.label,
-    badge:   'bg-rose-100 text-rose-800 border-rose-200',
-    header:  'from-rose-700 to-rose-900',
+    tono:    'rosa',
     section: 'bg-rose-50/60 border-rose-200',
-    text:    'text-rose-700',
-    accent:  'border-rose-400',
+    text:    'text-rose-800',
     icon:    FileX,
   },
   DEJAR_QUIETO: {
     label:   DECISIONES_CUENTA_VENCIDA.DEJAR_QUIETO.label,
-    badge:   'bg-slate-100 text-slate-700 border-slate-200',
-    header:  'from-slate-700 to-slate-900',
-    section: 'bg-slate-50/60 border-slate-200',
-    text:    'text-slate-600',
-    accent:  'border-slate-400',
+    tono:    'ambar',
+    section: 'bg-amber-50/60 border-amber-200',
+    text:    'text-amber-800',
     icon:    TrendingDown,
   },
-} as const
+}
 
 // ── Portal ────────────────────────────────────────────────────────────────────
 
@@ -135,12 +134,10 @@ export default function ProrrogaDetalleModal({
   canApprove = true,
   isProcessing = false,
 }: ProrrogaDetalleModalProps) {
-  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
-  // modales anidados Escape cierra solo el de encima.
-  const { capa } = useModalDialog({
+  const id = useId()
+  const { contenedorRef, propsDialogo, capa } = useModalDialog({
     abierto: isOpen,
     onClose: onClose,
-    // Modal de solo lectura: no hay campo que enfocar.
     enfocarAlAbrir: false,
   })
 
@@ -158,98 +155,71 @@ export default function ProrrogaDetalleModal({
 
   return (
     <Portal>
-      {/* Backdrop */}
       <div
-        className="fixed inset-0 capa-modal bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-        style={{ zIndex: capa }}
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div
-        className={`${FONDO_HOJA_MODAL} `}
+        className={FONDO_HOJA_MODAL}
         style={{ zIndex: capa }}
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+          ref={contenedorRef}
+          {...propsDialogo}
+          aria-labelledby={`${id}-titulo`}
+          className={`${PANEL_HOJA_MODAL} max-w-2xl border border-slate-200`}
           onClick={e => e.stopPropagation()}
         >
-          {/* ── Header ── */}
-          <div className={`bg-gradient-to-br ${cfg.header} px-7 py-5 relative overflow-hidden shrink-0`}>
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white blur-3xl" />
-            </div>
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-white/15 rounded-xl text-white">
-                  <DecisionIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-black text-white tracking-tight">
-                    {cfg.label}
-                  </h2>
-                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-0.5">
-                    {data.numeroPrestamo ? `${data.numeroPrestamo} · ` : ''}{clienteNombre}
-                  </p>
-                </div>
-              </div>
-              <Tooltip texto="Cerrar">
-                <button
-                  onClick={onClose}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-                  aria-label="Cerrar"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </Tooltip>
-            </div>
-          </div>
+          <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
+
+          <CabeceraModal
+            idTitulo={`${id}-titulo`}
+            titulo={cfg.label}
+            subtitulo={`${data.numeroPrestamo ? `${data.numeroPrestamo} · ` : ''}${clienteNombre}`}
+            icono={DecisionIcon}
+            tono={cfg.tono}
+            onClose={onClose}
+            cerrarDeshabilitado={isProcessing}
+          />
 
           {/* ── Body ── */}
-          <div className="overflow-y-auto flex-1 p-6 space-y-4">
-
-            {/* Solicitante + fecha */}
-            <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-t-2xl max-h-[100dvh] pb-[env(safe-area-inset-bottom)] sm:rounded-2xl sm:max-h-[90dvh] sm:pb-0 border border-amber-100">
-              {/* La barra que indica «esto se cierra hacia abajo». Solo en móvil. */}
-              <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-                <User className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Solicitado por</p>
-                <p className="text-sm font-black text-slate-900">{data.gestionadoPor || data.solicitante || '—'}</p>
-                {data.creadoEn && (
-                  <p className="text-[10px] text-slate-400 font-medium mt-0.5 flex items-center gap-1">
-                    <Clock className="h-3 w-3" />{formatFechaHora(data.creadoEn)}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Datos del cliente y préstamo */}
-            <div className={`rounded-2xl border p-4 space-y-3 ${cfg.section}`}>
-              <p className={`text-[9px] font-black uppercase tracking-widest ${cfg.text}`}>
-                Información del Crédito
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                {/* Cliente */}
-                <div className="col-span-2 bg-white/70 rounded-xl p-3">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Cliente</p>
-                  <p className="text-base font-black text-slate-900">{clienteNombre}</p>
+          <div className={`${CUERPO_HOJA_MODAL} p-5 sm:p-6 space-y-4`}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Solicitante + fecha */}
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
+                  <User className="h-5 w-5" />
                 </div>
-                {/* Préstamo */}
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Solicitado por</p>
+                  <p className="text-sm font-bold text-slate-900 truncate">{data.gestionadoPor || data.solicitante || '—'}</p>
+                  {data.creadoEn && (
+                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                      <Clock className="h-3 w-3 shrink-0" />{formatFechaHora(data.creadoEn)}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Datos del cliente y préstamo */}
+              <div className={`rounded-2xl border p-4 space-y-2 ${cfg.section}`}>
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${cfg.text}`}>
+                  Información del Crédito
+                </p>
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-slate-600 font-medium">Cliente</span>
+                  <span className="font-bold text-slate-900 text-right truncate">{clienteNombre}</span>
+                </div>
                 {data.numeroPrestamo && (
-                  <div className="bg-white/70 rounded-xl p-3">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">No. Préstamo</p>
-                    <p className="text-sm font-black text-slate-900">{data.numeroPrestamo}</p>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-slate-600 font-medium">No. Préstamo</span>
+                    <span className="font-mono font-bold text-slate-900">{data.numeroPrestamo}</span>
                   </div>
                 )}
-                {/* Saldo */}
                 {saldoPendiente > 0 && (
-                  <div className="bg-white/70 rounded-xl p-3">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" /></p>
-                    <p className="text-sm font-black text-rose-600">{formatCurrency(saldoPendiente)}</p>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-slate-600 font-medium flex items-center gap-1">
+                      Saldo pendiente
+                      <AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" />
+                    </span>
+                    <span className="font-bold text-rose-700 tabular-nums">{formatCurrency(saldoPendiente)}</span>
                   </div>
                 )}
               </div>
@@ -257,46 +227,44 @@ export default function ProrrogaDetalleModal({
 
             {/* Datos específicos de la prórroga */}
             {esProrroga && (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4 space-y-3">
-                <p className="text-[9px] font-black text-blue-700 uppercase tracking-widest">
+              <div className="rounded-2xl border border-sky-200 bg-sky-50/40 p-4 space-y-3">
+                <p className="text-[10px] font-bold text-sky-800 uppercase tracking-wider">
                   Condiciones de la Prórroga
                 </p>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {diasGracia !== null && (
-                    <div className="bg-white rounded-xl p-3 text-center border border-blue-100">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Días de Gracia</p>
-                      <p className="text-3xl font-black text-blue-700">{diasGracia}</p>
-                      <p className="text-[9px] text-slate-400 font-bold">días</p>
+                    <div className="bg-white rounded-xl p-3 text-center border border-sky-100">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Días de Gracia</p>
+                      <p className="text-2xl font-bold text-sky-800 tabular-nums">{diasGracia} <span className="text-xs font-medium text-slate-500">días</span></p>
                     </div>
                   )}
                   {data.fechaVencimientoOriginal && (
-                    <div className="bg-white rounded-xl p-3 text-center border border-blue-100">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Fecha Orig.</p>
-                      <Calendar className="h-4 w-4 text-slate-400 mx-auto mb-1" />
-                      <p className="text-[10px] font-black text-slate-700 leading-tight">
+                    <div className="bg-white rounded-xl p-3 text-center border border-slate-200">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Fecha Orig.</p>
+                      <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-slate-800 mt-1">
+                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
                         {formatFecha(data.fechaVencimientoOriginal)}
-                      </p>
+                      </div>
                     </div>
                   )}
                   {data.nuevaFechaVencimiento && (
-                    <div className="bg-blue-100 rounded-xl p-3 text-center border border-blue-200">
-                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">Nueva Fecha</p>
-                      <CalendarClock className="h-4 w-4 text-blue-600 mx-auto mb-1" />
-                      <p className="text-[10px] font-black text-blue-900 leading-tight">
+                    <div className="bg-sky-50 rounded-xl p-3 text-center border border-sky-200">
+                      <p className="text-[10px] font-bold text-sky-700 uppercase tracking-wider mb-1">Nueva Fecha</p>
+                      <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-sky-950 mt-1">
+                        <CalendarClock className="h-3.5 w-3.5 text-sky-700" />
                         {formatFecha(data.nuevaFechaVencimiento)}
-                      </p>
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {/* Interés adicional */}
                 {montoInteres > 0 && (
-                  <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-amber-100">
-                    <div className="flex items-center gap-2 text-amber-700">
+                  <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-amber-200">
+                    <div className="flex items-center gap-2 text-amber-800">
                       <DollarSign className="h-4 w-4" />
-                      <p className="text-[10px] font-black uppercase tracking-widest">Interés / Mora adicional</p>
+                      <p className="text-xs font-bold uppercase tracking-wider">Interés / Mora adicional</p>
                     </div>
-                    <p className="text-base font-black text-amber-700">{formatCurrency(montoInteres)}</p>
+                    <p className="text-base font-bold text-amber-900 tabular-nums">{formatCurrency(montoInteres)}</p>
                   </div>
                 )}
               </div>
@@ -304,9 +272,9 @@ export default function ProrrogaDetalleModal({
 
             {/* Info para CASTIGAR */}
             {decision === 'CASTIGAR' && (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4 space-y-2">
-                <p className="text-[9px] font-black text-rose-700 uppercase tracking-widest">Impacto Contable</p>
-                <p className="text-sm text-rose-800 font-medium leading-relaxed">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 space-y-1.5">
+                <p className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">Impacto Contable</p>
+                <p className="text-sm text-rose-900 leading-relaxed">
                   De aprobarse, el préstamo será marcado como{' '}
                   <strong>pérdida contable</strong> y el capital restante{' '}
                   <strong>{formatCurrency(saldoPendiente)}</strong> quedará registrado como
@@ -317,37 +285,38 @@ export default function ProrrogaDetalleModal({
 
             {/* Observaciones */}
             {data.comentarios && (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center gap-2 mb-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div className="flex items-center gap-2 mb-1.5">
                   <MessageSquare className="h-4 w-4 text-slate-400" />
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Observaciones</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Observaciones</p>
                 </div>
-                <p className="text-sm text-slate-700 font-medium italic leading-relaxed border-l-4 border-slate-300 pl-3">
-                  "{data.comentarios}"
+                <p className="text-sm text-slate-700 italic leading-relaxed border-l-2 border-slate-300 pl-3">
+                  &ldquo;{data.comentarios}&rdquo;
                 </p>
               </div>
             )}
-
           </div>
 
           {/* ── Footer de acciones ── */}
           {canApprove && data.estado === 'PENDIENTE' && (
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
+            <div className={`${PIE_HOJA_MODAL} px-5 py-3.5 sm:px-6 bg-slate-50/80 border-t border-slate-100 flex justify-end gap-3`}>
               <button
+                type="button"
                 onClick={() => onReject?.(data.id)}
                 disabled={isProcessing}
-                className="flex-1 py-3 border border-rose-200 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="min-h-11 px-5 border border-rose-200 bg-white text-rose-700 rounded-xl text-xs font-bold hover:bg-rose-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <XCircle className="h-4 w-4" />
                 Rechazar
               </button>
               <button
+                type="button"
                 onClick={() => onApprove?.(data.id)}
                 disabled={isProcessing}
-                className="flex-[2] py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 disabled:opacity-50"
+                className="min-h-11 px-6 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isProcessing
-                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Procesando...</>
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Procesando…</>
                   : <><CheckCircle2 className="h-4 w-4" /> Aprobar Solicitud</>}
               </button>
             </div>

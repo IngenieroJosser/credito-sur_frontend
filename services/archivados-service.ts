@@ -24,4 +24,15 @@ export const archivadosService = {
   async listar(): Promise<ElementoArchivado[]> {
     return apiRequest<ElementoArchivado[]>('GET', '/archivados');
   },
+
+  /**
+   * Borrado definitivo de un elemento ya archivado.
+   *
+   * Es irreversible y NO tiene respaldo offline a proposito: no tiene sentido
+   * encolar un borrado para reintentarlo despues. El backend lo rechaza (409)
+   * si el registro tiene pagos o movimientos de dinero.
+   */
+  async eliminarDefinitivo(tipo: string, entidadId: string) {
+    return apiRequest('DELETE', `/archivados/${tipo}/${entidadId}`);
+  },
 };

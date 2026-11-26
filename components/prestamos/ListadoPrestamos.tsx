@@ -932,8 +932,8 @@ const ListadoPrestamosElegante = () => {
                                 can('LOANS_DELETE') ||
                                 canForPath(baseRoute)) &&
                               prestamo.estado !== 'PENDIENTE_APROBACION' ? (
-                                <Tooltip texto="Marcar como pérdida">
-                                  <button aria-label="Marcar como pérdida"
+                                <Tooltip texto="Archivar crédito">
+                                  <button aria-label="Archivar crédito"
                                     onClick={() => setPrestamoAEliminar(prestamo.id)}
                                     className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                                   >
@@ -1128,8 +1128,8 @@ const ListadoPrestamosElegante = () => {
                       </Tooltip>
                       {(can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute)) &&
                       prestamo.estado !== 'PENDIENTE_APROBACION' ? (
-                        <Tooltip texto="Marcar como pérdida">
-                          <button aria-label="Marcar como pérdida"
+                        <Tooltip texto="Archivar crédito">
+                          <button aria-label="Archivar crédito"
                             onClick={() => setPrestamoAEliminar(prestamo.id)}
                             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                           >

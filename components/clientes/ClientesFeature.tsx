@@ -860,12 +860,17 @@ export default function ClientesFeature({
                               </Tooltip>
                             )}
                             {puedeEliminar && (
-                              <button aria-label="Eliminar"
-                                onClick={() => handleDeleteClick(cliente)}
-                                className="shrink-0 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                              <Tooltip texto="Archivar cliente">
+                                <button aria-label="Archivar cliente"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteClick(cliente)
+                                  }}
+                                  className="shrink-0 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </Tooltip>
                             )}
                           </div>
                         </td>
@@ -1044,8 +1049,8 @@ export default function ClientesFeature({
                         </Tooltip>
                       )}
                       {puedeEliminar && (
-                        <Tooltip texto="Eliminar cliente">
-                          <button aria-label="Eliminar cliente"
+                        <Tooltip texto="Archivar cliente">
+                          <button aria-label="Archivar cliente"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleDeleteClick(cliente)
@@ -1092,7 +1097,8 @@ export default function ClientesFeature({
           <span className="font-bold text-slate-900">
             {clientToDelete?.nombres} {clientToDelete?.apellidos}
           </span>
-          ?
+          ? Sus créditos también se archivarán. Podrás restaurarlos desde la
+          sección de Archivados.
         </p>
       </Modal>
 

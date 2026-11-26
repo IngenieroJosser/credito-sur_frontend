@@ -6,25 +6,29 @@ import { formatFechaBogota } from '@/lib/format-date'
  *
  * Opciones:
  * - PRORROGAR: extender el plazo con opción de cobrar mora
- * - CASTIGAR:  marcar como pérdida contable
- * - JURIDICO:  escalar a cobro jurídico
- *
- * Diseño consistente con el sistema: header de gradiente, footer slate,
- * scroll interno, cierre al click fuera, loading state.
+ * - DEJAR_QUIETO: seguimiento sin cobrar mora adicional
+ * - CASTIGAR: marcar como pérdida contable
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  X, AlertCircle, DollarSign, Save, Ban, Clock,
+  AlertCircle, DollarSign, Save, Ban, Clock,
   CalendarClock, Check, Loader2, Scale, Info
 } from 'lucide-react'
 import { formatCurrency, cn, formatCOPDecimalTypingInputValue, formatCOPDecimalBlurInputValue, parseCOPDecimalInputToNumber } from '@/lib/utils'
-import Tooltip from '@/components/ui/Tooltip'
 import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
-import Cifra from '@/components/ui/Cifra'
+import CabeceraModal, { type tonosModal } from '@/components/ui/CabeceraModal'
+import FieldLabel from '@/components/ui/FieldLabel'
 import AyudaContextual from '@/components/ui/AyudaContextual'
+import {
+  BARRA_DE_ARRASTRE,
+  CUERPO_HOJA_MODAL,
+  FONDO_HOJA_MODAL,
+  PANEL_HOJA_MODAL,
+  PIE_HOJA_MODAL,
+} from '@/lib/ui/hoja-modal'
 
 interface CuentaVencida {
   id: string
@@ -59,39 +63,37 @@ const DECISION_CONFIG: Record<Decision, {
   label: string
   description: string
   icon: React.ReactNode
+  tono: keyof typeof tonosModal
   activeColor: string
   activeBorder: string
   activeBg: string
 }> = {
-  // El nombre y el efecto salen de `lib/display-labels`: la misma decisión se
-  // llamaba de tres formas distintas según la pantalla —aquí «Dejar Quieto»,
-  // en el modal de revisión «Sin Mora por Ahora» y en el listado «Sin mora por
-  // ahora»—, así que quien pedía la gestión y quien la aprobaba leían nombres
-  // diferentes para lo mismo. El color y el icono sí se quedan aquí: eso es
-  // presentación de esta pantalla y puede diferir sin confundir a nadie.
   PRORROGAR: {
     label: DECISIONES_CUENTA_VENCIDA.PRORROGAR.label,
     description: DECISIONES_CUENTA_VENCIDA.PRORROGAR.efecto,
-    icon: <Clock className="h-5 w-5" />,
-    activeColor: 'text-primary',
-    activeBorder: 'border-primary',
-    activeBg: 'bg-blue-50/50',
+    icon: <Clock className="h-4 w-4" />,
+    tono: 'cielo',
+    activeColor: 'text-sky-700',
+    activeBorder: 'border-sky-300 ring-1 ring-sky-200',
+    activeBg: 'bg-sky-50/70',
   },
   DEJAR_QUIETO: {
     label: DECISIONES_CUENTA_VENCIDA.DEJAR_QUIETO.label,
     description: DECISIONES_CUENTA_VENCIDA.DEJAR_QUIETO.efecto,
-    icon: <Ban className="h-5 w-5" />,
-    activeColor: 'text-slate-700',
-    activeBorder: 'border-slate-400',
-    activeBg: 'bg-slate-50',
+    icon: <Ban className="h-4 w-4" />,
+    tono: 'ambar',
+    activeColor: 'text-amber-700',
+    activeBorder: 'border-amber-300 ring-1 ring-amber-200',
+    activeBg: 'bg-amber-50/70',
   },
   CASTIGAR: {
     label: DECISIONES_CUENTA_VENCIDA.CASTIGAR.label,
     description: DECISIONES_CUENTA_VENCIDA.CASTIGAR.efecto,
-    icon: <Scale className="h-5 w-5" />,
+    icon: <Scale className="h-4 w-4" />,
+    tono: 'rosa',
     activeColor: 'text-rose-700',
-    activeBorder: 'border-rose-500',
-    activeBg: 'bg-rose-50/50',
+    activeBorder: 'border-rose-300 ring-1 ring-rose-200',
+    activeBg: 'bg-rose-50/70',
   },
 }
 
@@ -101,31 +103,29 @@ function Portal({ children }: { children: React.ReactNode }) {
 }
 
 export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: GestionarVencidaModalProps) {
+  const id = useId()
   const [decision, setDecision] = useState<Decision>('PRORROGAR')
   const [cobrarInteres, setCobrarInteres] = useState(true)
   const [montoInteres, setMontoInteres] = useState<string>('')
   const [diasGracia, setDiasGracia] = useState<string>('')
   const [comentarios, setComentarios] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
-  // modales anidados Escape cierra solo el de encima.
-  const { alTocarElFondo, capa } = useModalDialog({
-    onClose: onClose,
+
+  const { contenedorRef, propsDialogo, alTocarElFondo, capa } = useModalDialog({
+    onClose,
+    enfocarAlAbrir: false,
   })
 
-  /**
-   * Lo que se perderia si el fondo cerrara el dialogo.
-   *
-   * Aqui se decide la prorroga, el castigo o el seguimiento de una cuenta
-   * vencida, con su monto de interes y su justificacion escrita. Un toque
-   * fuera de la tarjeta lo borraba todo. `PagoModal` ya lo habia resuelto y
-   * dejo el motivo escrito; esto solo reusa el mismo helper.
-   */
+  useEffect(() => {
+    const anterior = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = anterior }
+  }, [])
+
   const hayDatosSinGuardar =
     montoInteres.trim() !== '' ||
     diasGracia.trim() !== '' ||
     comentarios.trim() !== ''
-
 
   const cfg = DECISION_CONFIG[decision]
 
@@ -136,13 +136,12 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
   })()
 
   const montoInteresNum = cobrarInteres ? parseCOPDecimalInputToNumber(montoInteres) : 0
-
-  const isValid = decision !== 'PRORROGAR' || (Number(diasGracia) >= 1)
+  const isValid = decision !== 'PRORROGAR' || Number(diasGracia) >= 1
   const requireComentario = decision === 'CASTIGAR'
+  const deshabilitado = !isValid || isLoading || (requireComentario && !comentarios.trim())
 
   const handleConfirm = async () => {
-    if (!isValid || isLoading) return
-    if (requireComentario && !comentarios.trim()) return
+    if (deshabilitado) return
     setIsLoading(true)
     try {
       await onConfirm({
@@ -159,99 +158,84 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
   return (
     <Portal>
       <div
-        className="fixed inset-0 capa-modal bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-        style={{ zIndex: capa }}
-        onClick={(evento) => alTocarElFondo(evento, hayDatosSinGuardar)}
-      />
-      <div
-        className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4"
+        className={FONDO_HOJA_MODAL}
         style={{ zIndex: capa }}
         onClick={(evento) => alTocarElFondo(evento, hayDatosSinGuardar)}
       >
         <div
-          className="bg-white shadow-2xl w-full overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col border border-slate-100 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-lg"
+          ref={contenedorRef}
+          {...propsDialogo}
+          aria-labelledby={`${id}-titulo`}
+          className={`${PANEL_HOJA_MODAL} max-w-2xl border border-slate-200`}
           onClick={e => e.stopPropagation()}
         >
-          {/* ── Header ── */}
-          <div className={cn(
-            'px-7 py-5 relative overflow-hidden shrink-0 transition-colors duration-300',
-            decision === 'PRORROGAR' ? 'bg-gradient-to-br from-primary to-blue-800'
-            : decision === 'CASTIGAR'  ? 'bg-gradient-to-br from-rose-700 to-rose-900'
-            : 'bg-gradient-to-br from-slate-700 to-slate-900'
-          )}>
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white blur-3xl" />
-            </div>
-            <div className="relative z-10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-white/15 rounded-xl text-white">
-                  <AlertCircle className="h-5 w-5 text-orange-300" />
+          <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
+
+          <CabeceraModal
+            idTitulo={`${id}-titulo`}
+            titulo="Gestión de Cuenta Vencida"
+            subtitulo={`${cuenta.numeroPrestamo} · ${cuenta.cliente.nombre}`}
+            icono={AlertCircle}
+            tono={cfg.tono}
+            onClose={onClose}
+            cerrarDeshabilitado={isLoading}
+          />
+
+          {/* ── Body limpio en flujo vertical cómodo ── */}
+          <div className={`${CUERPO_HOJA_MODAL} px-5 py-5 sm:px-6 space-y-4`}>
+            {/* Resumen horizontal de la cuenta */}
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-rose-200/80 bg-rose-50/50 px-4 py-3.5">
+              <div className="flex flex-1 items-center gap-3.5 min-w-0">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-white text-sm font-bold text-rose-700">
+                  {cuenta.diasVencidos}d
                 </div>
-                <div>
-                  <h2 className="text-lg font-black text-white tracking-tight">Gestión de Cuenta Vencida</h2>
-                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-0.5">
-                    {cuenta.numeroPrestamo} · {cuenta.cliente.nombre}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-rose-700">
+                    Saldo Vencido
+                    <AyudaContextual ayuda="saldoPendiente" de="el saldo vencido" tamano="pequeno" />
+                  </div>
+                  <div className="text-xs font-medium text-slate-600 truncate">
+                    {cuenta.cliente.nombre} · {cuenta.ruta || 'Sin asignar'}
+                  </div>
                 </div>
               </div>
-              <Tooltip texto="Cerrar">
-                <button
-                  onClick={onClose}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center"
-                  aria-label="Cerrar"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </Tooltip>
-            </div>
-          </div>
-
-          {/* ── Body ── */}
-          <div className="overflow-y-auto flex-1 p-6 space-y-5">
-
-            {/* Resumen del saldo */}
-            <div className="flex items-center gap-4 p-4 bg-rose-50 rounded-2xl border border-rose-100">
-              <div className="h-12 w-12 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-700 font-black text-sm shrink-0">
-                {cuenta.diasVencidos}d
-              </div>
-              <div className="flex-1">
-                <div className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Saldo Vencido<AyudaContextual ayuda="saldoPendiente" de="el saldo vencido" tamano="pequeno" /></div>
-                <Cifra
-                  valor={cuenta.saldoPendiente}
-                  tamano="grande"
-                  className="font-black text-slate-900"
-                />
-                <div className="text-xs text-slate-500 font-medium">{cuenta.cliente.nombre} · {cuenta.ruta || 'Sin ruta'}</div>
+              <div className="shrink-0 text-right">
+                <span className="text-2xl font-bold tabular-nums text-slate-900 whitespace-nowrap">
+                  {formatCurrency(cuenta.saldoPendiente)}
+                </span>
               </div>
             </div>
 
-            {/* Selector de decision */}
+            {/* Selector de acción */}
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
-                Tipo de accion
-              </label>
-              <div className="grid grid-cols-3 gap-2">
+              <FieldLabel>Tipo de acción</FieldLabel>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 {(Object.keys(DECISION_CONFIG) as Decision[]).map(d => {
                   const c = DECISION_CONFIG[d]
                   const isActive = decision === d
                   return (
                     <button
                       key={d}
+                      type="button"
                       onClick={() => setDecision(d)}
                       className={cn(
-                        'p-3 rounded-2xl border-2 transition-all text-left',
-                        isActive ? cn(c.activeBorder, c.activeBg) : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                        'rounded-xl border p-3.5 text-left transition-all',
+                        isActive
+                          ? cn(c.activeBorder, c.activeBg)
+                          : 'border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-50'
                       )}
                     >
-                      <div className={cn('mb-1.5', isActive ? c.activeColor : 'text-slate-400')}>
-                        {c.icon}
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={cn(isActive ? c.activeColor : 'text-slate-400')}>
+                          {c.icon}
+                        </span>
+                        <span className={cn('text-xs font-bold', isActive ? 'text-slate-900' : 'text-slate-700')}>
+                          {c.label}
+                        </span>
                       </div>
-                      <div className={cn('text-xs font-black', isActive ? 'text-slate-900' : 'text-slate-600')}>
-                        {c.label}
-                      </div>
-                      <div className="text-[9px] text-slate-400 font-medium mt-0.5 leading-tight">
+                      <p className="text-[11px] text-slate-500 leading-snug">
                         {c.description}
-                      </div>
+                      </p>
                     </button>
                   )
                 })}
@@ -260,92 +244,86 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
 
             {/* Panel de PRORROGAR */}
             {decision === 'PRORROGAR' && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                {/* Días */}
-                <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
-                    Días de extensión
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 w-8 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100">
-                      <CalendarClock className="h-4 w-4 text-blue-600" />
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <FieldLabel htmlFor={`${id}-dias`} required>Días de extensión</FieldLabel>
+                    <div className="relative">
+                      <CalendarClock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-sky-600" />
+                      <input
+                        id={`${id}-dias`}
+                        type="number"
+                        value={diasGracia}
+                        onChange={e => setDiasGracia(e.target.value)}
+                        placeholder="30"
+                        min="1"
+                        className="min-h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                      />
                     </div>
-                    <input
-                      type="number"
-                      value={diasGracia}
-                      onChange={e => setDiasGracia(e.target.value)}
-                      placeholder="30"
-                      min="1"
-                      className="w-full pl-14 pr-4 py-4 rounded-2xl border border-slate-200 font-black text-xl text-slate-900 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all"
-                    />
+                    {Number(diasGracia) > 0 && (
+                      <p className="mt-1.5 text-xs font-medium text-sky-700">
+                        Nueva fecha límite: <span className="font-semibold text-slate-900">{nuevaFecha}</span>
+                      </p>
+                    )}
                   </div>
-                  {Number(diasGracia) > 0 && (
-                    <p className="text-[10px] text-blue-600 font-bold mt-1.5 flex items-center gap-1">
-                      Nueva fecha límite: <span className="text-slate-900 ml-1">{nuevaFecha}</span>
-                    </p>
-                  )}
-                </div>
-
-                {/* Interés */}
-                <div className="space-y-3">
-                  <label
-                    className="flex items-center gap-3 p-4 rounded-2xl border border-slate-200 hover:border-blue-200 cursor-pointer transition-all bg-white shadow-sm"
-                    onClick={() => setCobrarInteres(!cobrarInteres)}
-                  >
-                    <div className={cn(
-                      'h-6 w-6 rounded-lg border-2 flex items-center justify-center transition-colors shrink-0',
-                      cobrarInteres ? 'bg-primary border-primary' : 'border-slate-300 bg-slate-50'
-                    )}>
-                      {cobrarInteres && <Check className="w-4 h-4 text-white" />}
-                    </div>
-                    <div>
-                      <div className="text-sm font-black text-slate-900">Cobrar interés de mora adicional</div>
-                      <div className="text-xs text-slate-500">Se sumará al saldo pendiente</div>
-                    </div>
-                  </label>
 
                   {cobrarInteres && (
-                    <div className="space-y-2 animate-in zoom-in-95 duration-200">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block">
-                        Monto del interés ($)
-                      </label>
+                    <div>
+                      <FieldLabel htmlFor={`${id}-interes`}>Monto del interés ($)</FieldLabel>
                       <div className="relative">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 w-8 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-100">
-                          <DollarSign className="h-4 w-4 text-amber-600" />
-                        </div>
+                        <DollarSign className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-600" />
                         <input
+                          id={`${id}-interes`}
                           type="text"
                           inputMode="decimal"
                           value={montoInteres}
                           onChange={e => setMontoInteres(formatCOPDecimalTypingInputValue(e.target.value))}
                           onBlur={(e) => setMontoInteres(formatCOPDecimalBlurInputValue(e.target.value))}
                           placeholder="0"
-                          className="w-full pl-14 pr-4 py-4 rounded-2xl border border-amber-200 font-black text-xl text-slate-900 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition-all"
+                          className="min-h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                         />
                       </div>
                       {montoInteresNum > 0 && (
-                        <div className="flex justify-between items-center px-4 py-3 bg-slate-50 rounded-2xl border border-slate-200 text-sm">
-                          <span className="text-slate-500 font-medium">Nueva deuda total</span>
-                          <span className="font-black text-slate-900">{formatCurrency(cuenta.saldoPendiente + montoInteresNum)}</span>
-                        </div>
+                        <p className="mt-1.5 text-xs font-medium text-slate-600">
+                          Nueva deuda total:{' '}
+                          <span className="font-bold text-slate-900">
+                            {formatCurrency(cuenta.saldoPendiente + montoInteresNum)}
+                          </span>
+                        </p>
                       )}
                     </div>
                   )}
                 </div>
+
+                <label
+                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 cursor-pointer transition-colors hover:border-sky-200"
+                  onClick={() => setCobrarInteres(!cobrarInteres)}
+                >
+                  <div className={cn(
+                    'h-5 w-5 rounded-md border flex items-center justify-center transition-colors shrink-0',
+                    cobrarInteres ? 'bg-sky-700 border-sky-700' : 'border-slate-300 bg-slate-50'
+                  )}>
+                    {cobrarInteres && <Check className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-slate-900">Cobrar interés de mora adicional</div>
+                    <div className="text-[11px] text-slate-500">Se sumará al saldo pendiente del crédito</div>
+                  </div>
+                </label>
               </div>
             )}
 
             {/* Panel DEJAR_QUIETO */}
             {decision === 'DEJAR_QUIETO' && (
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 animate-in fade-in duration-150">
                 <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-slate-500 shrink-0 mt-0.5" />
+                  <Info className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-black text-slate-900">Sin cargo de mora por ahora</h4>
-                    <p className="text-xs text-slate-600 leading-relaxed mt-1">
-                      El cliente <strong>{cuenta.cliente.nombre}</strong> permanecera en seguimiento
-                      pero no se le asignara ningun interes de mora en este momento.
-                      Podras gestionarlo nuevamente cuando sea necesario.
+                    <h4 className="text-xs font-bold text-amber-950">Sin cargo de mora por ahora</h4>
+                    <p className="text-xs text-amber-900/80 leading-relaxed mt-1">
+                      El cliente <strong>{cuenta.cliente.nombre}</strong> permanecerá en seguimiento
+                      sin asignarle interés de mora en este momento. Podrás gestionarlo nuevamente
+                      cuando sea necesario.
                     </p>
                   </div>
                 </div>
@@ -354,15 +332,15 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
 
             {/* Panel CASTIGAR */}
             {decision === 'CASTIGAR' && (
-              <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4 animate-in fade-in duration-150">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
+                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-black text-rose-900">¿Reportar como pérdida?</h4>
-                    <p className="text-xs text-rose-700 leading-relaxed mt-1">
-                      Esta acción marcará el préstamo como pérdida contable.
-                      El capital restante <strong>{formatCurrency(cuenta.saldoPendiente)}</strong> quedará registrado como cartera castigada.
-                      Esta acción es <strong>irreversible</strong>.
+                    <h4 className="text-xs font-bold text-rose-950">¿Reportar como pérdida contable?</h4>
+                    <p className="text-xs text-rose-800 leading-relaxed mt-1">
+                      El capital restante <strong>{formatCurrency(cuenta.saldoPendiente)}</strong> quedará
+                      registrado como cartera castigada y saldrá de la cartera activa. Esta acción es{' '}
+                      <strong>irreversible</strong>.
                     </p>
                   </div>
                 </div>
@@ -371,52 +349,58 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
 
             {/* Observaciones */}
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
-                Observaciones {decision !== 'CASTIGAR' ? '(opcional)' : '(requerido)'}
-              </label>
+              <FieldLabel htmlFor={`${id}-obs`} required={requireComentario}>
+                Observaciones {requireComentario ? '' : '(opcional)'}
+              </FieldLabel>
               <textarea
+                id={`${id}-obs`}
                 value={comentarios}
                 onChange={e => setComentarios(e.target.value)}
                 placeholder={
-                  decision === 'PRORROGAR' ? 'Ej: El cliente se compromete a pagar...'
-                  : 'Razón del castigo de cartera...'
+                  decision === 'PRORROGAR'
+                    ? 'Ej: El cliente se compromete a pagar...'
+                    : decision === 'DEJAR_QUIETO'
+                      ? 'Ej: Motivo del seguimiento sin mora...'
+                      : 'Razón del castigo de cartera...'
                 }
-                rows={3}
-                className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all resize-none placeholder:text-slate-300"
+                rows={2}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 resize-none placeholder:text-slate-400"
               />
             </div>
           </div>
 
           {/* ── Footer ── */}
-          <div className="px-6 py-5 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
+          <div className={`${PIE_HOJA_MODAL} flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/80 px-5 py-3.5 sm:px-6`}>
             <button
+              type="button"
               onClick={onClose}
-              className="flex-1 min-h-[44px] py-3.5 px-4 rounded-2xl text-slate-600 font-black text-[10px] uppercase tracking-widest bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
+              className="min-h-11 rounded-xl border border-slate-200 bg-white px-5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
             >
               Cancelar
             </button>
             <button
+              type="button"
               onClick={handleConfirm}
-              disabled={!isValid || isLoading || (requireComentario && !comentarios.trim())}
+              disabled={deshabilitado}
               className={cn(
-                'flex-[2] py-3.5 px-4 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2',
-                (!isValid || isLoading || (requireComentario && !comentarios.trim()))
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                'min-h-11 rounded-xl px-6 text-xs font-bold text-white transition-colors flex items-center justify-center gap-2',
+                deshabilitado
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   : decision === 'PRORROGAR'
-                    ? 'bg-primary shadow-blue-900/20 hover:scale-[1.02] active:scale-95'
+                    ? 'bg-sky-700 hover:bg-sky-800'
                     : decision === 'DEJAR_QUIETO'
-                      ? 'bg-slate-700 shadow-slate-900/20 hover:bg-slate-800'
-                      : 'bg-rose-600 shadow-rose-900/20 hover:bg-rose-700'
+                      ? 'bg-amber-700 hover:bg-amber-800'
+                      : 'bg-rose-600 hover:bg-rose-700'
               )}
             >
               {isLoading ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Procesando...</>
+                <><Loader2 className="h-4 w-4 animate-spin" /> Procesando…</>
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  {decision === 'PRORROGAR' ? 'Confirmar Prorroga'
-                    : decision === 'DEJAR_QUIETO' ? 'Confirmar - Sin Mora'
-                    : 'Confirmar Perdida'}
+                  {decision === 'PRORROGAR' ? 'Confirmar prórroga'
+                    : decision === 'DEJAR_QUIETO' ? 'Confirmar seguimiento'
+                    : 'Confirmar pérdida'}
                 </>
               )}
             </button>

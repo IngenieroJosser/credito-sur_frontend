@@ -6,6 +6,7 @@ import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import { Archive, Search, Filter, RefreshCw, RotateCcw, Trash2, Eye, MapPin } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { useAuth } from '@/hooks/useAuth'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { auditoriaService } from '@/services/auditoria-service'
@@ -43,8 +44,8 @@ export default function ArchivadosPage() {
   const [rutaFiltro, setRutaFiltro] = useState('todas')
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<ArchivedItem | null>(null)
-  const [isHideModalOpen, setIsHideModalOpen] = useState(false)
-  const [selectedHideItem, setSelectedHideItem] = useState<ArchivedItem | null>(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [selectedDeleteItem, setSelectedDeleteItem] = useState<ArchivedItem | null>(null)
   const [detalleClienteId, setDetalleClienteId] = useState<string | null>(null)
   const [detallePrestamoId, setDetallePrestamoId] = useState<string | null>(null)
   const [detalleProductoId, setDetalleProductoId] = useState<string | null>(null)
@@ -53,6 +54,13 @@ export default function ArchivadosPage() {
   const [loading, setLoading] = useState(true)
   // Permite que el boton 'Actualizar' vuelva a cargar los datos.
   const [refreshKey, setRefreshKey] = useState(0)
+
+  // El borrado definitivo es irreversible y solo lo autoriza el backend para
+  // ADMIN y SUPER_ADMINISTRADOR. El boton se oculta al resto para no ofrecer
+  // una accion que el servidor va a rechazar con 403.
+  const { user } = useAuth()
+  const puedeEliminarDefinitivo =
+    user?.rol === 'ADMIN' || user?.rol === 'SUPER_ADMINISTRADOR'
 
   /**
    * Vuelve a pedir la lista.
@@ -157,47 +165,42 @@ export default function ArchivadosPage() {
     }
   }
 
-  const handleHideArchived = async () => {
-    if (!selectedHideItem) return
+  /**
+   * Borrado definitivo. Antes este boton solo OCULTABA el elemento de la lista
+   * de archivados (los datos seguian en la base). Ahora pide al backend el
+   * borrado real; si el registro tiene pagos o movimientos de dinero, el
+   * backend responde 409 y aqui se muestra el motivo.
+   */
+  const handleEliminarDefinitivo = async () => {
+    if (!selectedDeleteItem) return
 
-    setIsHideModalOpen(false)
-    const toastId = toast.loading(`Quitando ${selectedHideItem.tipo} de archivados...`)
+    setIsDeleteModalOpen(false)
+    const toastId = toast.loading(`Eliminando ${selectedDeleteItem.tipo}...`)
 
     try {
-      const { entidadId, tipo } = selectedHideItem
+      const { entidadId, tipo } = selectedDeleteItem
 
-      await auditoriaService.ocultarArchivado(tipo, entidadId)
+      await archivadosService.eliminarDefinitivo(tipo, entidadId)
 
-      toast.success('Elemento quitado de archivados', { id: toastId })
+      toast.success('Elemento eliminado definitivamente', { id: toastId })
+      setSelectedDeleteItem(null)
       recargar()
     } catch (error) {
       const statusCode = estadoDeError(error)
-      // El ultimo termino de la cadena que habia aqui era `error?.error` crudo, o
-      // sea un objeto en un sitio donde se espera texto. `mensajeDeError` recorre
-      // los mismos candidatos y devuelve '' si ninguno es legible, que es el mismo
-      // respaldo que tenia.
       const rawMessage = mensajeDeError(error, '')
 
-      let extra = ''
-      try {
-        extra = JSON.stringify(error)
-      } catch {
-        extra = String(error)
-      }
+      console.error('Error al eliminar definitivamente:', { statusCode, error })
 
-      console.error('Error al quitar de archivados:', {
-        statusCode,
-        message: rawMessage,
-        error,
-      })
-
+      // 409 = tiene dinero (pagos/movimientos) o esta ligado a creditos.
       const msg = rawMessage
-        ? (statusCode ? `[${statusCode}] ${rawMessage}` : String(rawMessage))
-        : (statusCode ? `[${statusCode}] Error al quitar el elemento` : 'Error al quitar el elemento')
+        ? rawMessage
+        : statusCode
+          ? `[${statusCode}] No se pudo eliminar el elemento`
+          : 'No se pudo eliminar el elemento'
 
-      toast.error(msg || extra || 'Error al quitar el elemento', { id: toastId })
+      toast.error(msg, { id: toastId, duration: 6000 })
     } finally {
-      setSelectedHideItem(null)
+      setSelectedDeleteItem(null)
     }
   }
 
@@ -432,17 +435,19 @@ export default function ArchivadosPage() {
                             </button>
                           </Tooltip>
 
-                          <Tooltip texto="Quitar de archivados">
-                            <button aria-label="Quitar de archivados"
-                              onClick={() => {
-                                setSelectedHideItem(item)
-                                setIsHideModalOpen(true)
-                              }}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </Tooltip>
+                          {item.tipo !== 'usuario' && puedeEliminarDefinitivo && (
+                            <Tooltip texto="Eliminar definitivamente">
+                              <button aria-label="Eliminar definitivamente"
+                                onClick={() => {
+                                  setSelectedDeleteItem(item)
+                                  setIsDeleteModalOpen(true)
+                                }}
+                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -512,7 +517,7 @@ export default function ArchivadosPage() {
         document.body
       )}
 
-      {mounted && isHideModalOpen && selectedHideItem && createPortal(
+      {mounted && isDeleteModalOpen && selectedDeleteItem && createPortal(
         <div className="fixed inset-0 capa-modal bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-sm border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center">
@@ -520,24 +525,29 @@ export default function ArchivadosPage() {
                 <Trash2 className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-2">
-                ¿Quitar de archivados?
+                ¿Eliminar definitivamente?
               </h3>
               <p className="text-sm text-slate-500 mb-6 font-medium">
-                Se quitará <span className="text-slate-900 font-bold">{selectedHideItem.nombre}</span> de la lista de archivados.
+                Se eliminará <span className="text-slate-900 font-bold">{selectedDeleteItem.nombre}</span> de forma
+                permanente. Esta acción no se puede deshacer. Si tiene pagos o movimientos de
+                dinero, el sistema no lo permitirá y deberás restaurarlo.
               </p>
               <div className="flex gap-3 w-full">
                 <button
-                  onClick={() => setIsHideModalOpen(false)}
+                  onClick={() => {
+                    setIsDeleteModalOpen(false)
+                    setSelectedDeleteItem(null)
+                  }}
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <BotonAccion
-                  onClick={handleHideArchived}
-                  textoCargando="Quitando…"
+                  onClick={handleEliminarDefinitivo}
+                  textoCargando="Eliminando…"
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-lg shadow-rose-600/20 transition-all transform active:scale-95"
                 >
-                  Quitar
+                  Eliminar
                 </BotonAccion>
               </div>
             </div>
