@@ -7,6 +7,7 @@ import { avisoDeCifraIncompleta } from '@/lib/contable/cifras-completas'
 import { formatearImportesEnConcepto } from '@/lib/contable/importes-en-concepto'
 import { deltaDeCaja } from '@/lib/contable/flujo-de-caja'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { BARRA_DE_ARRASTRE, CUERPO_HOJA_MODAL, FONDO_HOJA_MODAL, PANEL_HOJA_MODAL, PIE_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
 /**
  * ============================================================================
@@ -54,7 +55,6 @@ import {
   Eye,
   Edit2,
   Plus,
-  Zap,
   CreditCard,
   BarChart3,
   Clock,
@@ -97,6 +97,7 @@ import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
 import Tooltip from '@/components/ui/Tooltip'
+import CabeceraModal, { tonosModal } from '@/components/ui/CabeceraModal'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -445,8 +446,13 @@ const ModuloContableContent = () => {
     setCajaSeleccionada(null)
     setSaldoRutaSeleccionada(null)
   }
-  const dialogoCaja = useModalDialog({ abierto: showVerCajaModal && !!cajaSeleccionada, onClose: cerrarCaja })
-  const dialogoMovimientos = useModalDialog({ abierto: showDetalleModal, onClose: cerrarMovimientos })
+  const cerrarDetalleMovimiento = () => setShowVerMovimientoModal(false)
+  const { contenedorRef: refMovimiento, propsDialogo: propsMovimiento, capa: capaMovimiento, alTocarElFondo: fondoMovimiento } =
+    useModalDialog({ abierto: showVerMovimientoModal && !!movimientoSeleccionado, onClose: cerrarDetalleMovimiento })
+  const { contenedorRef: refCaja, propsDialogo: propsCaja, capa: capaCaja, alTocarElFondo: fondoCaja } =
+    useModalDialog({ abierto: showVerCajaModal && !!cajaSeleccionada, onClose: cerrarCaja })
+  const { contenedorRef: refHistorial, propsDialogo: propsHistorial, capa: capaHistorial, alTocarElFondo: fondoHistorial } =
+    useModalDialog({ abierto: showDetalleModal, onClose: cerrarMovimientos })
 
   const [resumenUtilidadModal, setResumenUtilidadModal] = useState<{
     totalUtilidad: number
@@ -1151,6 +1157,26 @@ const ModuloContableContent = () => {
   }
 
 
+
+  const tonoMovimiento = movimientoSeleccionado?.tipo === 'INGRESO' ? 'menta'
+    : movimientoSeleccionado?.tipo === 'EGRESO' ? 'rosa'
+    : movimientoSeleccionado?.tipo === 'DEUDA_COBRADOR' ? 'ambar' : 'cielo'
+  const paletaMovimiento = tonosModal[tonoMovimiento]
+  const tonoHistorial = detalleTipo === 'INGRESOS' || detalleCajaFocus === 'RECAUDO' ? 'menta'
+    : detalleTipo === 'EGRESOS' || detalleCajaFocus === 'GASTOS' ? 'rosa'
+    : detalleTipo === 'CUOTAS_INICIALES' || detalleTipo === 'CIERRES' ? 'ambar' : 'cielo'
+  const paletaHistorial = tonosModal[tonoHistorial]
+  const tituloHistorial = detalleTipo ? {
+    INGRESOS: 'Historial de Ingresos',
+    EGRESOS: 'Historial de Egresos',
+    CUOTAS_INICIALES: 'Historial de Cuotas Iniciales',
+    UTILIDAD: 'Detalle de Utilidad Operativa',
+    CAJA_TODOS: 'Movimientos de Caja',
+    CIERRES_RUTA: 'Historial de Cierres de Ruta',
+    CIERRES: 'Historial de Cierres',
+  }[detalleTipo] : 'Historial de Movimientos'
+  const IconoHistorial = tonoHistorial === 'menta' ? TrendingUp : tonoHistorial === 'rosa' ? TrendingDown
+    : detalleTipo === 'CUOTAS_INICIALES' ? CreditCard : History
 
   const movimientosVisibles = showDetalleModal
     ? (movimientosDeCaja ? movimientosDetalle : movimientosModalGlobal).filter((movimiento) => {
@@ -2088,37 +2114,22 @@ const ModuloContableContent = () => {
 
 
         {showVerMovimientoModal && movimientoSeleccionado && renderInPortal(
-          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowVerMovimientoModal(false)}>
-            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-slate-900">Detalle de Movimiento</h3>
-                  {/* ID Oculto por solicitud del usuario */}
-                </div>
-                <button aria-label="Cerrar"
-                  onClick={() => setShowVerMovimientoModal(false)}
-                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
-                >
-                  <XCircle className="h-5 w-5" />
-                </button>
-              </div>
+          <div className={FONDO_HOJA_MODAL} style={{ zIndex: capaMovimiento }} onClick={(e) => fondoMovimiento(e, false)}>
+            <div ref={refMovimiento} {...propsMovimiento} aria-labelledby="titulo-detalle-movimiento"
+              className={`${PANEL_HOJA_MODAL} max-w-lg`} onClick={(e) => e.stopPropagation()}>
+              <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
+              <CabeceraModal idTitulo="titulo-detalle-movimiento" titulo="Detalle de Movimiento"
+                icono={ArrowRightLeft} tono={tonoMovimiento} onClose={cerrarDetalleMovimiento} />
 
-              <div className="p-6 space-y-5">
-                <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+              <div className={`${CUERPO_HOJA_MODAL} space-y-5 bg-slate-50/65 p-4 sm:p-6`}>
+                <div className={cn('flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4', paletaMovimiento.superficie)}>
                   <div className="min-w-0">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Monto Operación</div>
-                    <MoneyAmount value={movimientoSeleccionado.monto} amountClassName="text-2xl font-black text-slate-900" />
+                    <div className="mb-1 text-xs font-semibold text-slate-700">Monto de la operación</div>
+                    <MoneyAmount value={movimientoSeleccionado.monto} amountClassName={cn('text-2xl font-bold', paletaMovimiento.texto)} />
                   </div>
-                  <div className="text-right">
-                    <div className={cn(
-                      "inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border",
-                      movimientoSeleccionado.tipo === 'INGRESO'
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-rose-50 text-rose-700 border-rose-200",
-                    )}>
-                      {movimientoSeleccionado.tipo}
-                    </div>
-                  </div>
+                  <span className={cn('rounded-md px-2.5 py-1 text-xs font-bold', paletaMovimiento.insignia)}>
+                    {movimientoSeleccionado.tipo}
+                  </span>
                 </div>
 
                 {esMovimientoPagoRegularizado(movimientoSeleccionado) && (
@@ -2252,12 +2263,10 @@ const ModuloContableContent = () => {
                 )}
               </div>
 
-              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
-                <button
-                  onClick={() => setShowVerMovimientoModal(false)}
-                  className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all text-sm"
-                >
-                  Cerrar
+              <div className={`${PIE_HOJA_MODAL} flex justify-end`}>
+                <button type="button" onClick={cerrarDetalleMovimiento}
+                  className="min-h-11 rounded-lg border border-sky-200 bg-sky-50 px-4 text-sm font-semibold text-sky-900 hover:bg-sky-100">
+                  Cerrar detalle
                 </button>
               </div>
             </div>
@@ -2266,30 +2275,19 @@ const ModuloContableContent = () => {
 
 
         {showVerCajaModal && cajaSeleccionada && renderInPortal(
-          <div className="fixed inset-0 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
-            style={{ zIndex: dialogoCaja.capa }} onClick={(e) => dialogoCaja.alTocarElFondo(e, showDetalleModal)}>
-            <div ref={dialogoCaja.contenedorRef} {...dialogoCaja.propsDialogo} aria-labelledby="titulo-detalle-caja"
-              inert={showDetalleModal} className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl bg-white border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div className="min-w-0">
-                    <h3 id="titulo-detalle-caja" className="text-lg font-bold text-slate-900">Detalle de Caja</h3>
-                    {/* <p className="text-xs font-bold text-slate-500">{cajaSeleccionada.id}</p> */}
-                </div>
-                <button aria-label="Cerrar"
-                  onClick={cerrarCaja}
-                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
-                >
-                  <XCircle className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="p-6 space-y-6">
-                <div className="flex flex-col items-center justify-center py-4 bg-slate-50 rounded-2xl border border-slate-100 mb-6">
-                    <div className="text-slate-500 text-sm font-bold uppercase mb-1">Saldo Actual</div>
+          <div className={FONDO_HOJA_MODAL} style={{ zIndex: capaCaja }} onClick={(e) => fondoCaja(e, showDetalleModal)}>
+            <div ref={refCaja} {...propsCaja} aria-labelledby="titulo-detalle-caja"
+              inert={showDetalleModal} className={`${PANEL_HOJA_MODAL} max-w-lg`} onClick={(e) => e.stopPropagation()}>
+              <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
+              <CabeceraModal idTitulo="titulo-detalle-caja" titulo="Detalle de Caja" icono={Wallet} onClose={cerrarCaja} />
+
+              <div className={`${CUERPO_HOJA_MODAL} space-y-6 bg-slate-50/65 p-4 sm:p-6`}>
+                <div className="flex min-w-0 flex-col items-start gap-1 rounded-lg border border-sky-200 bg-sky-50 p-4">
+                    <div className="text-xs font-semibold text-sky-900">Saldo Actual</div>
                     <MoneyAmount
                       value={cajaSeleccionada.saldo}
-                      className="text-4xl font-extrabold"
-                      amountClassName="text-4xl font-extrabold text-slate-900"
-                      badgeClassName="text-[10px] px-3 py-1 tracking-widest"
+                      amountClassName="text-3xl font-bold text-sky-950"
+                      badgeClassName="text-xs px-2 py-1"
                     />
                     {/*
                       Si alguna de las cifras de abajo se calculó sumando una
@@ -2307,7 +2305,7 @@ const ModuloContableContent = () => {
                       </p>
                     ) : null}
                     {verCajaRangoStats && (
-                      <div className="mt-3 w-full flex flex-col items-center gap-1">
+                      <div className="mt-2 flex w-full flex-col items-start gap-1 border-t border-sky-200 pt-3">
                         <p className="text-xs font-medium text-slate-500">Total registrado ({verCajaRangoStats.inicio} → {verCajaRangoStats.fin})</p>
                         <MoneyAmount value={verCajaRangoStats.totalRegistrado} meaning="signed" amountClassName="text-sm font-bold text-slate-900" />
                         <p className="text-xs font-medium text-slate-500">Saldo previo al rango</p>
@@ -2400,7 +2398,7 @@ const ModuloContableContent = () => {
                             setDetalleCajaFocus('RECAUDO')
                             setShowDetalleModal(true);
                         }}
-                        className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 cursor-pointer hover:bg-emerald-100/80 transition-colors group"
+                        className="bg-emerald-50 p-4 rounded-lg border border-emerald-200 cursor-pointer hover:bg-emerald-100/80 transition-colors group"
                       >
                          <div className="text-[10px] font-bold text-emerald-600 uppercase mb-1 flex items-center gap-1 justify-between">
                              <div className="flex items-center gap-1">
@@ -2447,7 +2445,7 @@ const ModuloContableContent = () => {
                           setDetalleCajaFocus('GASTOS')
                           setShowDetalleModal(true);
                       }}
-                      className="bg-rose-50 p-4 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100/80 transition-colors group"
+                      className="bg-rose-50 p-4 rounded-lg border border-rose-200 cursor-pointer hover:bg-rose-100/80 transition-colors group"
                     >
                        <div className="text-[10px] font-bold text-rose-600 uppercase mb-1 flex items-center gap-1 justify-between">
                            <div className="flex items-center gap-1">
@@ -2529,69 +2527,40 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
-            style={{ zIndex: dialogoMovimientos.capa }} onClick={(e) => dialogoMovimientos.alTocarElFondo(e, false)}>
-            <div ref={dialogoMovimientos.contenedorRef} {...dialogoMovimientos.propsDialogo} aria-labelledby="titulo-historial-contable"
-              className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90dvh]" onClick={(e) => e.stopPropagation()}>
-              {/* Modal Header */}
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
-                <div className="min-w-0">
-                   <h3 id="titulo-historial-contable" className="text-lg font-bold text-slate-900">
-                      {detalleTipo === 'INGRESOS'
-                        ? 'Historial de Ingresos'
-                        : detalleTipo === 'EGRESOS'
-                          ? 'Historial de Egresos'
-                          : detalleTipo === 'CUOTAS_INICIALES'
-                            ? 'Historial de Cuotas Iniciales'
-                            : detalleTipo === 'UTILIDAD'
-                              ? 'Detalle de Utilidad Operativa'
-                              : detalleTipo === 'CAJA_TODOS'
-                                ? 'Movimientos de Caja'
-                          : detalleTipo === 'CIERRES_RUTA'
-                            ? 'Historial de Cierres de Ruta'
-                            : 'Historial de Cierres'}
-                   </h3>
-                    <p className="text-xs font-bold text-blue-600 mt-1 uppercase tracking-widest flex items-center gap-1.5">
-                       <History className="w-3.5 h-3.5" />
-                       Consulta detallada
-                    </p>
-                </div>
-                <button aria-label="Cerrar"
-                  onClick={cerrarMovimientos}
-                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
-                >
-                  <XCircle className="h-6 w-6" />
-                </button>
-              </div>
+          <div className={FONDO_HOJA_MODAL} style={{ zIndex: capaHistorial }} onClick={(e) => fondoHistorial(e, false)}>
+            <div ref={refHistorial} {...propsHistorial} aria-labelledby="titulo-historial-contable"
+              className={`${PANEL_HOJA_MODAL} max-w-2xl`} onClick={(e) => e.stopPropagation()}>
+              <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
+              <CabeceraModal idTitulo="titulo-historial-contable" titulo={tituloHistorial} subtitulo="Consulta detallada"
+                icono={IconoHistorial} tono={tonoHistorial} onClose={cerrarMovimientos} />
 
-              {/* Modal Content */}
-              <div className="p-6 overflow-y-auto custom-scrollbar">
+              <div className={`${CUERPO_HOJA_MODAL} bg-slate-50/65 p-4 sm:p-6`}>
                   <div className="space-y-6">
                     {estadoDetalle?.aviso && (
                       <p role="status" className="text-sm text-amber-800">{estadoDetalle.aviso}</p>
                     )}
                     {/* Resumen Total Header */}
                     {detalleTipo === 'CIERRES' ? (
-                        <div className="rounded-xl border p-5 flex justify-between items-center transition-colors shadow-sm border-orange-100 bg-orange-50/50">
+                        <div className={cn('flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 sm:p-5', paletaHistorial.superficie, paletaHistorial.texto)}>
                             <div className="flex flex-col">
-                                <span className="text-xs font-bold uppercase tracking-wider mb-1 text-orange-600">
+                                <span className="mb-1 text-xs font-semibold">
                                   Consolidaciones Automáticas
                                 </span>
-                                <span className="text-3xl font-black tracking-tight text-orange-800">
+                                <span className="text-2xl font-bold tabular-nums sm:text-3xl">
                                   {historialCierres.length} registros
                                 </span>
                             </div>
-                            <div className="p-4 rounded-full border shadow-sm bg-white border-orange-100 text-orange-600">
+                            <div className={cn('grid size-11 shrink-0 place-items-center rounded-lg', paletaHistorial.insignia)}>
                                 <History className="w-6 h-6"/>
                             </div>
                         </div>
                     ) : detalleTipo === 'CIERRES_RUTA' ? (
-                      <div className="rounded-xl border p-5 flex justify-between items-center transition-colors shadow-sm border-slate-200 bg-slate-50/50">
+                      <div className={cn('flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 sm:p-5', paletaHistorial.superficie, paletaHistorial.texto)}>
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold uppercase tracking-wider mb-1 text-slate-600">
+                          <span className="mb-1 text-xs font-semibold">
                             Cierres Registrados
                           </span>
-                          <span className="text-3xl font-black tracking-tight text-slate-900">
+                          <span className="text-2xl font-bold tabular-nums sm:text-3xl">
                             {(() => {
                               const cajaId = cajaSeleccionada?.id
                               if (!cajaId) return 0
@@ -2599,32 +2568,14 @@ const ModuloContableContent = () => {
                             })()} registros
                           </span>
                         </div>
-                        <div className="p-4 rounded-full border shadow-sm bg-white border-slate-200 text-slate-700">
+                        <div className={cn('grid size-11 shrink-0 place-items-center rounded-lg', paletaHistorial.insignia)}>
                           <History className="w-6 h-6" />
                         </div>
                       </div>
                     ) : (
-                        <div className={cn(
-                          "rounded-xl border p-5 flex justify-between items-center transition-colors shadow-sm",
-                          detalleTipo === 'INGRESOS'
-                            ? "border-emerald-100 bg-emerald-50/50"
-                            : detalleTipo === 'EGRESOS'
-                              ? "border-red-100 bg-red-50/50"
-                              : detalleTipo === 'CUOTAS_INICIALES'
-                                ? "border-amber-100 bg-amber-50/50"
-                                : "border-indigo-100 bg-indigo-50/50"
-                        )}>
+                        <div className={cn('flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 sm:p-5', paletaHistorial.superficie, paletaHistorial.texto)}>
                            <div className="flex flex-col">
-                               <span className={cn(
-                                 "text-xs font-bold uppercase tracking-wider mb-1",
-                                 detalleTipo === 'INGRESOS'
-                                   ? "text-emerald-600"
-                                   : detalleTipo === 'EGRESOS'
-                                     ? "text-red-600"
-                                     : detalleTipo === 'CUOTAS_INICIALES'
-                                       ? "text-amber-700"
-                                       : "text-indigo-700"
-                               )}>
+                               <span className="mb-1 text-xs font-semibold">
                                  {detalleCajaFocus === 'RECAUDO'
                                    ? 'Entradas del rango'
                                    : detalleCajaFocus === 'GASTOS'
@@ -2633,16 +2584,7 @@ const ModuloContableContent = () => {
                                        ? 'Neto del rango'
                                        : 'Total registrado'}
                                </span>
-                               <span className={cn(
-                                 "text-3xl font-black tracking-tight",
-                                 detalleTipo === 'INGRESOS'
-                                   ? "text-emerald-800"
-                                   : detalleTipo === 'EGRESOS'
-                                     ? "text-red-800"
-                                     : detalleTipo === 'CUOTAS_INICIALES'
-                                       ? "text-amber-800"
-                                       : "text-indigo-800"
-                               )}>
+                               <span className="text-2xl font-bold tabular-nums sm:text-3xl">
                                  {(() => {
                                     if (estadoDetalle?.cargando) return 'Consultando…'
                                     if (estadoDetalle?.error) return 'No disponible'
@@ -2686,23 +2628,8 @@ const ModuloContableContent = () => {
                                  })()}
                                </span>
                            </div>
-                           <div className={cn(
-                               "p-4 rounded-full border shadow-sm",
-                               detalleTipo === 'INGRESOS'
-                                 ? "bg-white border-emerald-100 text-emerald-600"
-                                 : detalleTipo === 'EGRESOS'
-                                   ? "bg-white border-red-100 text-red-600"
-                                   : detalleTipo === 'CUOTAS_INICIALES'
-                                     ? "bg-white border-amber-100 text-amber-700"
-                                     : "bg-white border-indigo-100 text-indigo-700"
-                           )}>
-                               {detalleTipo === 'INGRESOS'
-                                 ? <TrendingUp className="w-6 h-6"/>
-                                 : detalleTipo === 'EGRESOS'
-                                   ? <TrendingDown className="w-6 h-6"/>
-                                   : detalleTipo === 'CUOTAS_INICIALES'
-                                     ? <CreditCard className="w-6 h-6"/>
-                                     : <Zap className="w-6 h-6"/>}
+                           <div className={cn('grid size-11 shrink-0 place-items-center rounded-lg', paletaHistorial.insignia)}>
+                             <IconoHistorial size={21} aria-hidden="true" />
                            </div>
                         </div>
                     )}
@@ -2783,7 +2710,7 @@ const ModuloContableContent = () => {
                     {/* Lista de Movimientos / Arqueos */}
                     <div className="space-y-3">
                       {detalleTipo !== 'CIERRES' && detalleTipo !== 'CIERRES_RUTA' && (
-                        <div className="flex gap-2 mb-4 bg-slate-50 p-2 rounded-xl">
+                        <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-sky-100 bg-sky-50/65 p-3 sm:grid-cols-2">
                             <div className="flex-1">
                                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Desde</label>
                                                                 <CampoFecha
@@ -2992,15 +2919,16 @@ const ModuloContableContent = () => {
                               }
                               
                               return (
-                                <div key={m.id} className="group p-4 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
-                                  <div className="flex justify-between items-start mb-3">
-                                    <div className="flex items-start gap-3">
+                                <div key={m.id} className={cn('rounded-lg border border-l-4 border-slate-200 bg-white p-3 sm:p-4',
+                                  isPositivo ? 'border-l-emerald-300' : 'border-l-rose-300')}>
+                                  <div className="mb-3 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                                    <div className="flex min-w-0 items-start gap-2">
                                       <div className={cn(
-                                        "mt-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-offset-2",
+                                        "mt-1.5 size-2 shrink-0 rounded-full ring-2 ring-offset-2",
                                         isPositivo ? "bg-emerald-500 ring-emerald-100" : "bg-rose-500 ring-rose-100"
                                       )} />
                                       <div>
-                                        <div className="font-bold text-slate-900 text-base leading-snug">
+                                        <div className="break-words font-semibold text-slate-900 text-sm leading-snug">
                                           {formatearImportesEnConcepto(conceptoMostrar)}
                                         </div>
                                         {esRegularizado && (
@@ -3016,8 +2944,8 @@ const ModuloContableContent = () => {
                                       </div>
                                     </div>
                                     <div className={cn(
-                                      "font-black text-lg tabular-nums tracking-tight whitespace-nowrap",
-                                      isPositivo ? "text-emerald-700" : "text-rose-700"
+                                      "ml-auto shrink-0 rounded-md px-2 py-1 font-bold text-sm tabular-nums whitespace-nowrap sm:text-base",
+                                      isPositivo ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"
                                     )}>
                                       {isPositivo ? '+' : '-'}{formatCurrency(movimientosDeCaja ? Math.abs(deltaDeCaja(m) ?? 0) : m.monto)}
                                     </div>

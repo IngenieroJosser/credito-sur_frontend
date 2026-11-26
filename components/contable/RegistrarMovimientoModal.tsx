@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { AlertCircle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Banknote, Info, Loader2, X } from 'lucide-react'
+import { AlertCircle, ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Banknote, Calculator, Info, Loader2 } from 'lucide-react'
+import CabeceraModal, { tonosModal } from '@/components/ui/CabeceraModal'
 import FieldLabel from '@/components/ui/FieldLabel'
 import { Selector } from '@/components/ui/Selector'
 import Tooltip from '@/components/ui/Tooltip'
@@ -25,7 +26,7 @@ type Props = {
 
 const control = 'min-h-11 w-full rounded-lg'
 const segmento = 'flex min-h-11 items-center justify-center gap-2 rounded-lg px-2 text-sm font-semibold transition-colors'
-const seleccionado = 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+const seleccionado = 'bg-white text-sky-900 ring-1 ring-sky-200'
 const disponible = 'text-slate-600 hover:bg-white/70'
 
 export default function RegistrarMovimientoModal({ modoInicial, cajaInicial, cajas, onClose, onRegistrar }: Props) {
@@ -48,6 +49,8 @@ export default function RegistrarMovimientoModal({ modoInicial, cajaInicial, caj
   }, [])
 
   const esTransferencia = modo === 'TRANSFERENCIA'
+  const tono = esTransferencia ? 'cielo' : externo.tipo === 'INGRESO' ? 'menta' : 'rosa'
+  const paleta = tonosModal[tono]
   const montoEscrito = esTransferencia ? transferencia.monto : externo.monto
   const monto = parseCOPInputToNumber(montoEscrito)
   const origen = esTransferencia ? cajas.find((c) => c.id === transferencia.origen) : undefined
@@ -115,22 +118,13 @@ export default function RegistrarMovimientoModal({ modoInicial, cajaInicial, caj
       <div ref={contenedorRef} {...propsDialogo} aria-labelledby={`${id}-titulo`}
         className={`${PANEL_HOJA_MODAL} max-w-xl`}>
         <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
-        <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 px-4 py-4 sm:px-6">
-          <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700">
-            <Banknote size={20} aria-hidden="true" />
-          </div>
-          <h2 id={`${id}-titulo`} className="min-w-0 flex-1 text-lg font-bold text-slate-900">Registrar movimiento</h2>
-          <Tooltip texto="Cerrar">
-            <button type="button" aria-label="Cerrar" onClick={cerrar} disabled={guardando}
-              className="grid size-11 shrink-0 place-items-center rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-50">
-              <X size={20} aria-hidden="true" />
-            </button>
-          </Tooltip>
-        </header>
+        <CabeceraModal idTitulo={`${id}-titulo`} titulo="Registrar movimiento"
+          subtitulo={esTransferencia ? 'Transferencia entre cajas' : externo.tipo === 'INGRESO' ? 'Ingreso externo' : 'Egreso externo'}
+          icono={esTransferencia ? ArrowLeftRight : Banknote} tono={tono} onClose={cerrar} cerrarDeshabilitado={guardando} />
 
         <form onSubmit={guardar} className="flex min-h-0 flex-1 flex-col">
           <div className={`${CUERPO_HOJA_MODAL} space-y-5 overscroll-contain px-4 py-5 sm:px-6`}>
-            <div role="group" aria-label="Clase de movimiento" className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+            <div role="group" aria-label="Clase de movimiento" className="grid grid-cols-2 gap-1 rounded-lg border border-sky-100 bg-sky-50 p-1">
               <button type="button" aria-pressed={!esTransferencia} disabled={guardando}
                 onClick={() => { setModo('EXTERNO'); setError(null) }}
                 className={cn(segmento, !esTransferencia ? seleccionado : disponible)}>
@@ -144,14 +138,14 @@ export default function RegistrarMovimientoModal({ modoInicial, cajaInicial, caj
             </div>
 
             {esTransferencia ? (
-              <div className="grid grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] sm:gap-3">
+              <div className="grid grid-cols-1 gap-1 rounded-lg border border-sky-100 bg-sky-50/60 p-3 sm:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] sm:gap-3">
                 {campoCaja('origen', 'Caja origen', transferencia.origen,
                   (valor) => setTransferencia((prev) => ({ ...prev, origen: valor })), origen, transferencia.destino)}
                 <div className="flex justify-center sm:pt-7">
                   <Tooltip texto="Intercambiar origen y destino">
                     <button type="button" aria-label="Intercambiar origen y destino" disabled={guardando || (!origen && !destino)}
                       onClick={() => setTransferencia((prev) => ({ ...prev, origen: prev.destino, destino: prev.origen }))}
-                      className="grid size-11 place-items-center rounded-lg border border-slate-200 text-blue-700 hover:border-blue-300 hover:bg-blue-50 disabled:opacity-40">
+                      className="grid size-11 place-items-center rounded-lg border border-sky-200 bg-white text-sky-800 hover:border-sky-300 hover:bg-sky-100 disabled:opacity-40">
                       <ArrowLeftRight size={18} aria-hidden="true" className="rotate-90 sm:rotate-0" />
                     </button>
                   </Tooltip>
@@ -169,7 +163,7 @@ export default function RegistrarMovimientoModal({ modoInicial, cajaInicial, caj
                     <button key={tipo} type="button" aria-pressed={externo.tipo === tipo} disabled={guardando}
                       onClick={() => setExterno((prev) => prev.tipo === tipo ? prev : { ...prev, tipo, categoria: '' })}
                       className={cn('flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold',
-                        externo.tipo === tipo ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>
+                        externo.tipo === tipo ? cn(paleta.superficie, paleta.texto) : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>
                       <Icono size={16} aria-hidden="true" />{texto}
                     </button>
                   ))}
@@ -187,7 +181,7 @@ export default function RegistrarMovimientoModal({ modoInicial, cajaInicial, caj
                         <button key={opcion.code} type="button" aria-pressed={activa} disabled={guardando}
                           onClick={() => setExterno((prev) => ({ ...prev, categoria: opcion.code }))}
                           className={cn('min-w-0 rounded-lg border p-3 text-left',
-                            activa ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:bg-slate-50')}>
+                            activa ? paleta.superficie : 'border-slate-200 hover:bg-slate-50')}>
                           <span className="block break-words text-sm font-semibold text-slate-900">{opcion.label}</span>
                           <span className="mt-1 block break-words text-xs text-slate-600">{opcion.efecto}</span>
                         </button>
@@ -216,9 +210,12 @@ export default function RegistrarMovimientoModal({ modoInicial, cajaInicial, caj
             </div>
 
             {esTransferencia && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+              <section aria-label="Vista previa de la transferencia" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-slate-700">
+                <h3 className="mb-2 flex items-center gap-2 font-semibold text-emerald-950">
+                  <Calculator size={16} aria-hidden="true" /> Vista previa
+                </h3>
                 {origen && destino && monto > 0 && !fondosInsuficientes && (
-                  <dl className="mb-2 space-y-2 border-b border-slate-200 pb-2">
+                  <dl className="mb-2 space-y-2 border-b border-emerald-200 pb-2">
                     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                       <dt className="min-w-0 break-words">{origen.nombre}</dt>
                       <dd className="font-semibold tabular-nums text-rose-700">{formatCurrency(-monto)}</dd>
@@ -232,11 +229,16 @@ export default function RegistrarMovimientoModal({ modoInicial, cajaInicial, caj
                 <p className="flex items-start gap-2 text-xs">
                   <Info size={15} aria-hidden="true" className="shrink-0" /> No afecta los ingresos ni los gastos del negocio.
                 </p>
-              </div>
+              </section>
             )}
-            {efecto && <p className={cn('rounded-lg border px-3 py-3 text-sm', efecto.alerta
-              ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-slate-200 bg-slate-50 text-slate-700')}>{efecto.texto}</p>}
-            {fondosInsuficientes && <p role="alert" className="flex gap-2 text-sm text-rose-700">
+            {efecto && (
+              <section aria-label="Vista previa contable" className={cn('rounded-lg border p-3 text-sm',
+                efecto.alerta ? 'border-amber-200 bg-amber-50 text-amber-900' : cn(paleta.superficie, paleta.texto))}>
+                <h3 className="mb-1 flex items-center gap-2 font-semibold"><Calculator size={16} aria-hidden="true" /> Vista previa</h3>
+                <p>{efecto.texto}</p>
+              </section>
+            )}
+            {fondosInsuficientes && <p role="alert" className="flex gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
               <AlertCircle size={17} aria-hidden="true" className="shrink-0" /> Saldo insuficiente en {cajaQueEntrega.nombre}.
             </p>}
             {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}

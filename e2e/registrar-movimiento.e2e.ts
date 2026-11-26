@@ -54,6 +54,7 @@ for (const [vista, width, height] of [['escritorio', 1440, 900], ['móvil', 375,
     const transferir = modal.getByRole('button', { name: 'Transferir', exact: true })
 
     await expect(entreCajas).toHaveAttribute('aria-pressed', 'true')
+    await expect(modal.getByRole('region', { name: 'Vista previa de la transferencia' })).toBeVisible()
     await expect(cajaDestino).toHaveText('Caja Principal')
     await expect(transferir).toBeDisabled()
     await cajaOrigen.click()

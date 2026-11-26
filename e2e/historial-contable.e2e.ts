@@ -78,6 +78,12 @@ test('historiales de resultado y movimientos de caja conservan su clasificación
   const concepto = page.getByText(/Entrada de inventario por importación.*87\.266/).first()
   await concepto.hover()
   await expect(page.getByRole('tooltip')).toHaveText(/\$\s?87\.266/)
+  await page.getByRole('button', { name: 'Ver Asiento Contable', exact: true }).first().click()
+  const asiento = page.getByRole('dialog', { name: 'Detalle de Movimiento' })
+  await expect(asiento.getByText('Monto de la operación')).toBeVisible()
+  await expect(asiento.getByText(/Entrada de inventario por importación.*87\.266/)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(asiento).toHaveCount(0)
   for (const [tarjeta, titulo, fila, monto] of [
     ['Total Ingresos', 'Historial de Ingresos', 'Intereses de prueba', /18\.750/],
     ['Total Gastos', 'Historial de Egresos', 'Gasto de prueba', /12\.000/],
