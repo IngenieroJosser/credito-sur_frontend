@@ -42,6 +42,8 @@ const CAMPO_LABELS: Record<string, string> = {
   fecha_ultimo_pago: 'Fecha del último pago',
   descontar_dinero_de_caja: 'Descontar dinero de caja',
   total_abonado: 'Total abonado',
+  precio_total_pactado: 'Precio total pactado',
+  saldo_informado: 'Saldo informado por cartera',
   abono_adicional: 'Abono adicional',
   cuotas_pagadas: 'Cuotas pagadas',
   cantidad_cuotas: 'Cantidad de cuotas',
@@ -86,6 +88,8 @@ type PreviewSection = {
 
 const getPreviewSections = (resultado: ResultadoValidacion): PreviewSection[] => {
   if (resultado.tipo === 'clientes-creditos') {
+    const creditos = resultado.creditos ?? [];
+    const haySaldoInformado = creditos.some((credito) => typeof credito.saldoInformado === 'number');
     return [
       {
         title: 'Clientes',
@@ -104,18 +108,20 @@ const getPreviewSections = (resultado: ResultadoValidacion): PreviewSection[] =>
       {
         title: 'Créditos',
         countLabel: 'créditos leídos',
-        rows: resultado.creditos ?? [],
+        rows: creditos,
         columns: [
+          { key: 'hoja', label: 'Hoja' },
           { key: 'fila', label: 'Fila' },
           { key: 'codigoImp', label: 'Código' },
           { key: 'numeroPrestamo', label: 'Préstamo' },
           { key: 'ccCliente', label: 'CC cliente' },
           { key: 'tipoPrestamo', label: 'Tipo' },
-          { key: 'monto', label: 'Monto', money: true },
+          { key: 'monto', label: 'Capital / financiado', money: true },
           { key: 'cantidadCuotas', label: 'Cuotas' },
           { key: 'cuotasPagadas', label: 'Pagadas' },
           { key: 'totalAbonado', label: 'Abonado', money: true },
-          { key: 'saldoPendiente', label: 'Saldo', money: true },
+          { key: 'saldoPendiente', label: 'Saldo calculado', money: true },
+          ...(haySaldoInformado ? [{ key: 'saldoInformado', label: 'Saldo de cartera', money: true }] : []),
           { key: 'tipoCarga', label: 'Carga' },
           { key: 'descontarCaja', label: 'Caja' },
         ],

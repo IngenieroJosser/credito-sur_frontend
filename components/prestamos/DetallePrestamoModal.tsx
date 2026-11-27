@@ -164,6 +164,8 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           tipoPrestamo: (typeof data.tipoPrestamo === 'string' ? data.tipoPrestamo : '').toUpperCase(),
           cuotaInicial: amounts.cuotaInicial,
           producto: typeof data.producto === 'string' ? data.producto : (data.producto?.nombre || data.tipoPrestamo || 'Préstamo'),
+          articuloHistorico: data.articuloHistorico ?? undefined,
+          soloPruebaHistorica: data.soloPruebaHistorica,
           // Aqui se leia `serie`, que no existe en ningun sitio del backend (ni columna
           // ni mencion) y para la que tampoco habia formulario donde escribirla. La fila
           // que la pintaba se quito de `DetallePrestamo.tsx`.

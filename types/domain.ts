@@ -213,6 +213,8 @@ export interface Prestamo {
    * los leia a traves de un `any`, asi que nadie comprobaba nada.
    */
   productoId?: string | null;
+  articuloHistorico?: { referencia: string; codigoOrigen: string | null; descripcion: string | null } | null;
+  soloPruebaHistorica?: boolean;
   pagos?: Pago[];
   producto?: {
     id?: string;

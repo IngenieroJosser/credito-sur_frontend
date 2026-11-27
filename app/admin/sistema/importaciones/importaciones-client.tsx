@@ -10,6 +10,7 @@ import { importacionesService } from '@/services/importaciones-service';
 import { ResultadoValidacion } from '@/types/importaciones';
 
 import { PlantillasCard } from './components/PlantillasCard';
+import { PreparacionHistoricaCard } from './components/PreparacionHistoricaCard';
 import { ArchivoValidadorCard } from './components/ArchivoValidadorCard';
 import { ValidationResult } from './components/ValidationResult';
 import { HistorialLotesCard } from './components/HistorialLotesCard';
@@ -217,7 +218,7 @@ export const ImportacionesClient = () => {
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-slate-400 opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 w-full p-8 space-y-8">
+      <div className="relative z-10 w-full min-w-0 space-y-8 p-4 sm:p-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
@@ -232,6 +233,8 @@ export const ImportacionesClient = () => {
             </p>
           </div>
         </header>
+
+        <PreparacionHistoricaCard alConfirmar={() => setVersionHistorial(v => v + 1)} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           <PlantillasCard />

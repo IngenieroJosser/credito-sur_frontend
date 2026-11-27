@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/apiClient';
 import { apiRequest } from '@/lib/api/api';
+import type { CreditoHistoricoDePrueba, DecisionesHistoricas, ExpedienteHistorico, RevisionHistoricaResultado, SeleccionHistorica, SimulacionHistorica } from '@/types/importaciones-historicas';
 import {
   LoteImportacion,
   ResultadoConfirmacionClientesCreditos,
@@ -19,19 +20,24 @@ const getBaseUrl = () => {
  * Función privada: descarga un archivo como Blob y lo dispara como descarga en el navegador.
  * Al estar fuera del objeto, evita problemas de `this` si se desestructura el servicio.
  */
-async function descargarArchivo(endpoint: string, nombreFallback: string): Promise<void> {
+async function descargarArchivo(endpoint: string, nombreFallback: string, archivos?: FormData): Promise<void> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const baseUrl = getBaseUrl();
   const fullUrl = `${baseUrl}${endpoint}`;
 
   const response = await fetch(fullUrl, {
-    method: 'GET',
+    method: archivos ? 'POST' : 'GET',
+    body: archivos,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
 
   if (!response.ok) {
+    if (archivos) {
+      const error: { message?: unknown } | null = await response.json().catch(() => null);
+      throw new Error(typeof error?.message === 'string' ? error.message : 'No se pudo preparar el consolidado.');
+    }
     throw new Error('No se pudo descargar la plantilla');
   }
 
@@ -91,6 +97,47 @@ export const importacionesService = {
       `/importaciones/lotes/${loteId}/revertir`,
       prestamoIds?.length ? { prestamoIds } : undefined,
     );
+  },
+
+  async revisarHistoricos(archivos: FormData): Promise<RevisionHistoricaResultado> {
+    return apiRequest<RevisionHistoricaResultado>('POST', '/importaciones/historicos/preparar?modo=revisar', archivos);
+  },
+
+  listarExpedientesHistoricos() {
+    return apiRequest<ExpedienteHistorico[]>('GET', '/importaciones/historicos/expedientes', undefined, { cacheTTL: 0 });
+  },
+
+  abrirExpedienteHistorico(id: string) {
+    return apiRequest<RevisionHistoricaResultado>('GET', `/importaciones/historicos/expedientes/${id}`, undefined, { cacheTTL: 0 });
+  },
+
+  listarCreditosHistoricosDePrueba(id: string) {
+    return apiRequest<CreditoHistoricoDePrueba[]>('GET', `/importaciones/historicos/expedientes/${id}/creditos-prueba`, undefined, { cacheTTL: 0 });
+  },
+
+  simularAbonoHistorico(id: string, prestamoId: string, monto: number) {
+    return apiRequest<SimulacionHistorica>('POST', `/importaciones/historicos/expedientes/${id}/simular-abono`, { prestamoId, monto });
+  },
+
+  guardarRevisionHistorica(id: string, revision: number, decisiones: DecisionesHistoricas) {
+    return apiRequest<RevisionHistoricaResultado>('POST', `/importaciones/historicos/expedientes/${id}/revisiones`, { revision, decisiones });
+  },
+
+  async descargarExpedienteHistorico(id: string) {
+    await descargarArchivo(`/importaciones/historicos/expedientes/${id}/consolidado`, 'consolidado-historico-revision.xlsx');
+  },
+
+  async prepararHistoricos(archivos: FormData): Promise<void> {
+    await descargarArchivo('/importaciones/historicos/preparar', 'consolidado-historico-revision.xlsx', archivos);
+  },
+  async confirmarIntegralDePrueba(id: string, revision: number, seleccion: SeleccionHistorica, evidencia: string) {
+    await apiRequest('POST', `/importaciones/historicos/expedientes/${id}/confirmar-prueba`, {
+      revision, ...seleccion, evidencia,
+    });
+  },
+
+  async descargarPlantillaIntegral(): Promise<void> {
+    await descargarArchivo('/importaciones/plantilla/integral', 'plantilla-integral-credisur.xlsx');
   },
 
   /**

@@ -1,37 +1,29 @@
 import { useState } from 'react';
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { Download, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { importacionesService } from '@/services/importaciones-service';
 import { toast } from 'sonner';
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 
+const PLANTILLAS = [
+  { titulo: 'Plantilla integral', detalle: 'Artículos, clientes y créditos en un solo Excel', descargar: importacionesService.descargarPlantillaIntegral },
+  { titulo: 'Clientes y Créditos', detalle: 'Plantilla modular de cartera', descargar: importacionesService.descargarPlantillaClientesCreditos },
+  { titulo: 'Inventario y Precios', detalle: 'Plantilla modular de productos', descargar: importacionesService.descargarPlantillaInventario },
+] as const;
+
 export const PlantillasCard = () => {
-  const [loadingClientes, setLoadingClientes] = useState(false);
-  const [loadingInventario, setLoadingInventario] = useState(false);
+  const [descargando, setDescargando] = useState<string | null>(null);
 
-  const handleDescargarClientes = async () => {
-    setLoadingClientes(true);
+  const descargar = async (plantilla: (typeof PLANTILLAS)[number]) => {
+    setDescargando(plantilla.titulo);
     try {
-      await importacionesService.descargarPlantillaClientesCreditos();
-      toast.success('Plantilla de clientes descargada');
+      await plantilla.descargar();
+      toast.success('Plantilla descargada');
     } catch (error) {
-      toast.error(mensajeDeError(error, 'Error al descargar la plantilla de clientes'));
+      toast.error(mensajeDeError(error, 'No se pudo descargar la plantilla'));
     } finally {
-      setLoadingClientes(false);
+      setDescargando(null);
     }
   };
-
-  const handleDescargarInventario = async () => {
-    setLoadingInventario(true);
-    try {
-      await importacionesService.descargarPlantillaInventario();
-      toast.success('Plantilla de inventario descargada');
-    } catch (error) {
-      toast.error(mensajeDeError(error, 'Error al descargar la plantilla de inventario'));
-    } finally {
-      setLoadingInventario(false);
-    }
-  };
-
   return (
     <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
       <div className="flex items-center gap-4 mb-6">
@@ -45,43 +37,26 @@ export const PlantillasCard = () => {
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-          <div className="min-w-0">
-            <div className="text-sm font-bold text-slate-900">Clientes y Créditos</div>
-            <div className="text-xs text-slate-500 mt-0.5 font-medium">Plantilla con reglas de negocio</div>
+        {PLANTILLAS.map((plantilla) => (
+          <div key={plantilla.titulo} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-slate-900">{plantilla.titulo}</div>
+              <div className="mt-0.5 text-xs font-medium text-slate-500">{plantilla.detalle}</div>
+            </div>
+            <button
+              type="button"
+              aria-label={`Descargar ${plantilla.titulo}`}
+              onClick={() => descargar(plantilla)}
+              disabled={descargando !== null}
+              className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
+            >
+              {descargando === plantilla.titulo
+                ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                : <Download className="h-4 w-4" aria-hidden="true" />}
+              Descargar
+            </button>
           </div>
-          <button 
-            onClick={handleDescargarClientes}
-            disabled={loadingClientes}
-            className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:text-blue-600 rounded-lg text-sm font-bold text-slate-600 shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            {loadingClientes ? (
-               <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-600 animate-spin"></div>
-            ) : (
-               <Download className="h-4 w-4" />
-            )}
-            Descargar
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-          <div className="min-w-0">
-            <div className="text-sm font-bold text-slate-900">Inventario y Precios</div>
-            <div className="text-xs text-slate-500 mt-0.5 font-medium">Plantilla de catálogo de productos</div>
-          </div>
-          <button 
-            onClick={handleDescargarInventario}
-            disabled={loadingInventario}
-            className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 hover:text-blue-600 rounded-lg text-sm font-bold text-slate-600 shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            {loadingInventario ? (
-               <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-blue-600 animate-spin"></div>
-            ) : (
-               <Download className="h-4 w-4" />
-            )}
-            Descargar
-          </button>
-        </div>
+        ))}
         
         {/*
           * Aqui habia un aviso generico —«utiliza unicamente estas plantillas

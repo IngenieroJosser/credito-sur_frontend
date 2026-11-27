@@ -68,6 +68,8 @@ export interface PrestamoDetalle {
   tipoPrestamo?: 'EFECTIVO' | 'ARTICULO' | string;
   cuotaInicial?: number;
   producto?: string;
+  articuloHistorico?: { referencia: string; codigoOrigen: string | null; descripcion: string | null };
+  soloPruebaHistorica?: boolean;
   productoInfo?: {
     marca?: string;
     modelo?: string;
@@ -1053,6 +1055,21 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <dt className="text-xs font-bold text-slate-400">Monto Prestado<AyudaContextual ayuda="montoPrestado" de="el monto prestado" tamano="pequeno" /></dt>
                   <dd className="text-sm font-bold text-slate-700">{formatCurrency(prestamo.montoPrestamo)}</dd>
                 </div>
+                {prestamo.soloPruebaHistorica && (
+                  <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                    <dt className="font-semibold">Crédito histórico de prueba</dt>
+                    <dd>Cobranza no habilitada</dd>
+                  </div>
+                )}
+                {prestamo.articuloHistorico && (
+                  <div className="flex flex-wrap justify-between gap-2 border-b border-slate-50 pb-2">
+                    <dt className="text-xs font-bold text-slate-500">Artículo histórico</dt>
+                    <dd className="min-w-0 break-words text-sm font-bold text-slate-700">
+                      {prestamo.articuloHistorico.descripcion || prestamo.articuloHistorico.codigoOrigen || 'Artículo sin identificar'}
+                      <span className="block text-xs font-medium">{prestamo.articuloHistorico.referencia}</span>
+                    </dd>
+                  </div>
+                )}
                 {prestamo.productoInfo && (
                   <>
                     <div className="flex justify-between border-b border-slate-50 pb-2">
