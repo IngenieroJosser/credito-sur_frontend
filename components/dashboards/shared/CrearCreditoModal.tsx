@@ -10,6 +10,8 @@ import {
   Calendar,
   CheckCircle2,
   Package,
+  Banknote,
+  Landmark,
   Loader2
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatLoanTerm, parseCOPInputToNumber } from '@/lib/utils'
@@ -694,11 +696,17 @@ export default function CrearCreditoModal({
                     <fieldset className="my-3">
                       <legend className="mb-2 text-sm font-semibold text-slate-700">Método de pago</legend>
                       <div className="grid grid-cols-2 gap-2">
-                        {([{ id: 'EFECTIVO', label: 'Efectivo' }, { id: 'TRANSFERENCIA', label: 'Transferencia' }] as const).map(({ id, label }) => (
-                          <label key={id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 has-[:checked]:border-emerald-300 has-[:checked]:bg-emerald-50">
-                            <input type="radio" name="metodo-pago-contado" value={id} checked={metodoPago === id} onChange={() => setMetodoPago(id)} />
-                            {label}
-                          </label>
+                        {([
+                          { id: 'EFECTIVO', label: 'Efectivo', Icono: Banknote },
+                          { id: 'TRANSFERENCIA', label: 'Transferencia', Icono: Landmark },
+                        ] as const).map(({ id, label, Icono }) => (
+                          <button key={id} type="button" aria-pressed={metodoPago === id} onClick={() => setMetodoPago(id)}
+                            className={`flex min-h-11 min-w-0 flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-medium ${metodoPago === id
+                              ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>
+                            <Icono size={16} aria-hidden="true" />
+                            <span className="min-w-0 break-words">{label}</span>
+                          </button>
                         ))}
                       </div>
                     </fieldset>

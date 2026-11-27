@@ -74,6 +74,8 @@ for (const [vista, width, height] of [['escritorio', 1440, 900], ['móvil', 375,
     await modal.getByRole('button', { name: 'Externo', exact: true }).click()
     await modal.getByRole('button', { name: 'Egreso', exact: true }).click()
     await expect(modal.getByRole('combobox', { name: 'Caja que entrega' })).toBeVisible()
+    const categorias = modal.getByRole('group', { name: '¿Qué tipo de salida es?' })
+    await expect(categorias.getByRole('button').first()).toBeVisible()
     await expect(modal.getByRole('button', { name: 'Registrar egreso' })).toBeDisabled()
     await entreCajas.click()
     await expect(cajaOrigen).toHaveText('Caja Principal')

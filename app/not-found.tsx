@@ -117,7 +117,7 @@ const NotFoundPage = () => {
           <div className={`relative mb-16 fade-in ${
             isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
           } transition-all duration-700`}>
-            <div className="text-[280px] font-light tracking-tighter leading-none text-gray-100 select-none">
+            <div aria-hidden="true" className="select-none text-[124px] font-light leading-none text-gray-100 sm:text-[200px] lg:text-[280px]">
               404
             </div>
             
@@ -142,10 +142,10 @@ const NotFoundPage = () => {
               <div className="text-center">
                 <div className="mb-6 flex justify-center">
                   <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-full">
-                    <AlertCircle className="w-4 h-4 text-secondary" />
-                    <span className="text-sm font-medium text-gray-700">
+                    <AlertCircle aria-hidden="true" className="w-4 h-4 text-secondary" />
+                    <h1 className="text-sm font-medium text-gray-700">
                       Recurso no encontrado
-                    </span>
+                    </h1>
                   </div>
                 </div>
                 <div className="text-gray-600 font-light text-lg max-w-md mx-auto tracking-wide leading-relaxed">

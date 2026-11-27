@@ -320,6 +320,7 @@ export default function PuntoDeVentaFloatingActions() {
     return result
   }, [ventasRecientes, ventasSearch, ventasFechaDesde, ventasFechaHasta])
 
+  const hayVentasPorCargar = totalVentasServidor > ventasRecientes.length
   const ventasTotalPages = Math.max(1, Math.ceil(ventasFiltradas.length / VENTAS_PER_PAGE))
   const ventasPaginadas = ventasFiltradas.slice(
     (ventasPage - 1) * VENTAS_PER_PAGE,
@@ -788,9 +789,11 @@ export default function PuntoDeVentaFloatingActions() {
               )}
             </div>
             {errorVentas && <p role="alert" className="px-6 py-2 text-sm text-rose-700">{errorVentas}</p>}
-            {(errorVentas || ventasRecientes.length < totalVentasServidor) && (
-              <div className="px-6 py-2 flex items-center justify-between gap-2 border-t border-slate-100">
-                {totalVentasServidor > 0 && <p className="text-xs text-slate-500">{ventasRecientes.length} de {totalVentasServidor} ventas cargadas</p>}
+            {(errorVentas || hayVentasPorCargar) && (
+              <div className="px-6 py-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100">
+                {hayVentasPorCargar && <p role="status" className="text-xs text-slate-600">
+                  {ventasRecientes.length} de {totalVentasServidor} ventas cargadas. Los filtros solo incluyen las ventas cargadas.
+                </p>}
                 <button type="button" disabled={loadingVentas} onClick={() => fetchVentasRecientes(loteVentas + 1)} className="ml-auto text-sm font-semibold text-blue-700 disabled:opacity-50">
                   {errorVentas ? 'Reintentar' : 'Cargar más ventas'}
                 </button>

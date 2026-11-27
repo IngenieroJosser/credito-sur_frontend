@@ -26,6 +26,7 @@ import {
   Filter,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { getBogotaDateKey, getBogotaRangeByPeriod, normalizeDateKey } from '@/lib/rutas-core'
 import { prestamosService } from '@/services/prestamos-service'
 import { etiquetaMetodoVenta, nombreArticuloDeVenta, salesService, type VentaDeContado } from '@/services/sales-service'
@@ -290,7 +291,7 @@ export default function SeguimientoPuntoVenta() {
   const [paginaContado, setPaginaContado] = useState(0)
   const [totalContado, setTotalContado] = useState(0)
   const [cargandoContado, setCargandoContado] = useState(false)
-  const [errorContado, setErrorContado] = useState(false)
+  const [errorContado, setErrorContado] = useState<string | null>(null)
   const ventas = useMemo(
     () => [...creditos, ...ventasContado].sort((a, b) => Date.parse(b.fechaVenta) - Date.parse(a.fechaVenta)),
     [creditos, ventasContado],
@@ -323,7 +324,7 @@ export default function SeguimientoPuntoVenta() {
 
   const cargarVentasContado = useCallback(async (pagina = 1) => {
     setCargandoContado(true)
-    setErrorContado(false)
+    setErrorContado(null)
     try {
       const resultado = await salesService.obtenerVentasContado({ pagina, limite: 50, soloPuntoVenta: true })
       const nuevas = resultado.ventas.map(mapearVentaContado)
@@ -334,8 +335,8 @@ export default function SeguimientoPuntoVenta() {
       })
       setPaginaContado(pagina)
       setTotalContado(resultado.paginacion.total)
-    } catch {
-      setErrorContado(true)
+    } catch (error) {
+      setErrorContado(mensajeDeError(error, 'No se pudieron cargar las ventas de contado.'))
     } finally {
       setCargandoContado(false)
     }
@@ -1195,7 +1196,7 @@ export default function SeguimientoPuntoVenta() {
       {(errorContado || ventasContado.length < totalContado) && (
         <div className="mx-6 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3">
           <p className="text-sm text-amber-900" role={errorContado ? 'alert' : undefined}>
-            {errorContado ? 'No se pudieron cargar todas las ventas de contado.' : `Resumen parcial: ${ventasContado.length} de ${totalContado} ventas de contado cargadas.`}
+            {errorContado ?? `Resumen parcial: ${ventasContado.length} de ${totalContado} ventas de contado cargadas.`}
           </p>
           <button type="button" disabled={cargandoContado} onClick={() => cargarVentasContado(paginaContado + 1)} className="text-sm font-semibold text-blue-700 disabled:opacity-50">
             {cargandoContado ? 'Cargando…' : errorContado ? 'Reintentar' : 'Cargar más ventas de contado'}

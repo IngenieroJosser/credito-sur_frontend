@@ -21,6 +21,7 @@ import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import CabeceraModal, { type tonosModal } from '@/components/ui/CabeceraModal'
 import FieldLabel from '@/components/ui/FieldLabel'
+import Cifra from '@/components/ui/Cifra'
 import AyudaContextual from '@/components/ui/AyudaContextual'
 import {
   BARRA_DE_ARRASTRE,
@@ -199,16 +200,13 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
                   </div>
                 </div>
               </div>
-              <div className="shrink-0 text-right">
-                <span className="text-2xl font-bold tabular-nums text-slate-900 whitespace-nowrap">
-                  {formatCurrency(cuenta.saldoPendiente)}
-                </span>
+              <div className="w-2/5 min-w-0 max-w-48 text-right">
+                <Cifra valor={cuenta.saldoPendiente} tamano="grande" className="font-bold text-slate-900" />
               </div>
             </div>
 
-            {/* Selector de acción */}
-            <div>
-              <FieldLabel>Tipo de acción</FieldLabel>
+            <fieldset className="min-w-0">
+              <legend className="mb-2 text-sm font-semibold text-slate-700">Tipo de acción</legend>
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 {(Object.keys(DECISION_CONFIG) as Decision[]).map(d => {
                   const c = DECISION_CONFIG[d]
@@ -217,6 +215,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
                     <button
                       key={d}
                       type="button"
+                      aria-pressed={isActive}
                       onClick={() => setDecision(d)}
                       className={cn(
                         'rounded-xl border p-3.5 text-left transition-all',
@@ -240,7 +239,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
                   )
                 })}
               </div>
-            </div>
+            </fieldset>
 
             {/* Panel de PRORROGAR */}
             {decision === 'PRORROGAR' && (

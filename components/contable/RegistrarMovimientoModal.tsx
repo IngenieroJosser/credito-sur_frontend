@@ -170,11 +170,12 @@ export default function RegistrarMovimientoModal({ modoInicial, cajaInicial, caj
                 </div>
                 {campoCaja('externa', externo.tipo === 'INGRESO' ? 'Caja que recibe' : 'Caja que entrega',
                   externo.cajaId, (valor) => setExterno((prev) => ({ ...prev, cajaId: valor })), cajaExterna)}
-                <div>
-                  <FieldLabel id={`${id}-categoria`} required>
+                <fieldset className="min-w-0">
+                  <legend className="mb-2 text-sm font-semibold text-slate-700">
                     ¿Qué tipo de {externo.tipo === 'INGRESO' ? 'entrada' : 'salida'} es?
-                  </FieldLabel>
-                  <div role="group" aria-labelledby={`${id}-categoria`} className="grid gap-2 sm:grid-cols-2">
+                    <span aria-hidden="true" className="ml-1 text-rose-600">*</span>
+                  </legend>
+                  <div className="grid gap-2 sm:grid-cols-2">
                     {categoriasPorTipo(externo.tipo).map((opcion) => {
                       const activa = opcion.code === externo.categoria
                       return (
@@ -188,7 +189,7 @@ export default function RegistrarMovimientoModal({ modoInicial, cajaInicial, caj
                       )
                     })}
                   </div>
-                </div>
+                </fieldset>
               </>
             )}
 

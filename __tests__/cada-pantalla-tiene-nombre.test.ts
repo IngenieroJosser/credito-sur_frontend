@@ -111,6 +111,19 @@ function soloRedirige(archivo: string): boolean {
   )
 }
 
+function fallback404(archivo: string): string | null {
+  const fuente = sinComentarios(fs.readFileSync(archivo, 'utf8'))
+  if (!/import\s*\{\s*notFound\s*\}\s*from\s*['"]next\/navigation['"]/.test(fuente) ||
+      !/export default function \w+\(\)\s*\{\s*(?:return\s+)?notFound\(\);?\s*\}/.test(fuente)) return null
+  let directorio = path.dirname(archivo)
+  while (true) {
+    const fallback = path.join(directorio, 'not-found.tsx')
+    if (fs.existsSync(fallback)) return fallback
+    if (directorio === APP) return null
+    directorio = path.dirname(directorio)
+  }
+}
+
 describe('cada pantalla dice cómo se llama', () => {
   it('ninguna se queda sin `<h1>`', () => {
     const sinNombre: string[] = []
@@ -119,7 +132,7 @@ describe('cada pantalla dice cómo se llama', () => {
       const rel = path.relative(RAIZ, archivo).split(path.sep).join('/')
       if (EXCEPCIONES.has(rel)) continue
       if (soloRedirige(archivo)) continue
-      if (enLaCadena(archivo, /<h1[\s>]/)) continue
+      if (enLaCadena(fallback404(archivo) ?? archivo, /<h1[\s>]/)) continue
       sinNombre.push(rel)
     }
 
@@ -136,6 +149,12 @@ describe('cada pantalla dice cómo se llama', () => {
       : 'ninguna'
 
     expect(informe).toBe('ninguna')
+  })
+
+  it('la ruta retirada de respaldos se comprueba en su fallback 404 accesible', () => {
+    const fallback = fallback404(path.join(APP, 'punto-de-venta', 'backups', 'page.tsx'))
+    expect(fallback).not.toBeNull()
+    expect(enLaCadena(fallback!, /<h1[\s>]/)).toBe(true)
   })
 
   it('cada excepción sigue existiendo', () => {

@@ -94,11 +94,20 @@ const PAGINA_EN_LOCAL = /Math\.ceil\(\s*\w+\.length\s*\/\s*\w+/
  */
 const LEE_EL_TOTAL_DEL_SERVIDOR = /paginacion\??\.total|meta\??\.total|totalRegistros/
 const LO_COMPARA_CON_SU_LIMITE = />\s*[A-Z][A-Z_]{3,}\b/
+const COMPARA_TOTAL_CON_FILAS = /\b(?:total\w*|\w+Total)\s*>\s*\w+\.length\b|\b\w+\.length\s*<\s*(?:total\w*|\w+Total)\b/
 const loDice = (codigo: string) =>
-  LEE_EL_TOTAL_DEL_SERVIDOR.test(codigo) && LO_COMPARA_CON_SU_LIMITE.test(codigo)
+  LEE_EL_TOTAL_DEL_SERVIDOR.test(codigo) &&
+    (LO_COMPARA_CON_SU_LIMITE.test(codigo) ||
+      (COMPARA_TOTAL_CON_FILAS.test(codigo) && /role="status"/.test(codigo)))
 
 describe('ninguna pantalla esconde datos sin decirlo', () => {
   const archivos = recorrer(RAIZ)
+
+  it('acepta comparar las filas recibidas con el total solo cuando se avisa', () => {
+    const comparacion = 'const totalVentas = respuesta.paginacion.total; const parcial = totalVentas > ventas.length;'
+    expect(loDice(comparacion)).toBe(false)
+    expect(loDice(comparacion + 'return parcial && <p role="status">Resumen parcial</p>')).toBe(true)
+  })
 
   it('la centinela está leyendo el proyecto', () => {
     // Piso medido el 2026-11-18: 308 archivos .tsx.
