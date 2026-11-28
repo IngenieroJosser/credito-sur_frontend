@@ -4,26 +4,21 @@ import { importacionesService } from '@/services/importaciones-service';
 import { toast } from 'sonner';
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 
-const PLANTILLAS = [
-  { titulo: 'Plantilla integral', detalle: 'Artículos, clientes y créditos en un solo Excel', descargar: importacionesService.descargarPlantillaIntegral },
-  { titulo: 'Clientes y Créditos', detalle: 'Plantilla modular de cartera', descargar: importacionesService.descargarPlantillaClientesCreditos },
-  { titulo: 'Inventario y Precios', detalle: 'Plantilla modular de productos', descargar: importacionesService.descargarPlantillaInventario },
-] as const;
-
 export const PlantillasCard = () => {
-  const [descargando, setDescargando] = useState<string | null>(null);
+  const [descargando, setDescargando] = useState(false);
 
-  const descargar = async (plantilla: (typeof PLANTILLAS)[number]) => {
-    setDescargando(plantilla.titulo);
+  const descargar = async () => {
+    setDescargando(true);
     try {
-      await plantilla.descargar();
+      await importacionesService.descargarPlantillaIntegral();
       toast.success('Plantilla descargada');
     } catch (error) {
       toast.error(mensajeDeError(error, 'No se pudo descargar la plantilla'));
     } finally {
-      setDescargando(null);
+      setDescargando(false);
     }
   };
+
   return (
     <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
       <div className="flex items-center gap-4 mb-6">
@@ -31,33 +26,37 @@ export const PlantillasCard = () => {
           <FileSpreadsheet className="h-6 w-6" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Plantillas Oficiales</h2>
-          <p className="text-xs text-slate-500 mt-1 font-medium">Descarga los formatos Excel requeridos</p>
+          <h2 className="text-lg font-bold text-slate-900">Plantilla oficial</h2>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Un solo Excel con artículos, clientes y créditos</p>
         </div>
       </div>
 
       <div className="space-y-4">
-        {PLANTILLAS.map((plantilla) => (
-          <div key={plantilla.titulo} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
-            <div className="min-w-0">
-              <div className="text-sm font-bold text-slate-900">{plantilla.titulo}</div>
-              <div className="mt-0.5 text-xs font-medium text-slate-500">{plantilla.detalle}</div>
-            </div>
-            <button
-              type="button"
-              aria-label={`Descargar ${plantilla.titulo}`}
-              onClick={() => descargar(plantilla)}
-              disabled={descargando !== null}
-              className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
-            >
-              {descargando === plantilla.titulo
-                ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                : <Download className="h-4 w-4" aria-hidden="true" />}
-              Descargar
-            </button>
+        {/*
+          * Antes había una tarjeta por módulo (integral, clientes y créditos,
+          * inventario). Se quitaron: el trabajo real se hace con el libro
+          * integral, y ofrecer tres formatos solo servía para que alguien
+          * llenara el que no era.
+          */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
+          <div className="min-w-0">
+            <div className="text-sm font-bold text-slate-900">Plantilla integral</div>
+            <div className="mt-0.5 text-xs font-medium text-slate-500">Artículos, clientes y créditos en un solo Excel</div>
           </div>
-        ))}
-        
+          <button
+            type="button"
+            aria-label="Descargar plantilla integral"
+            onClick={descargar}
+            disabled={descargando}
+            className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
+          >
+            {descargando
+              ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              : <Download className="h-4 w-4" aria-hidden="true" />}
+            {descargando ? 'Descargando…' : 'Descargar'}
+          </button>
+        </div>
+
         {/*
           * Aqui habia un aviso generico —«utiliza unicamente estas plantillas
           * para evitar errores de formato»— que no contaba lo unico que de

@@ -9,6 +9,13 @@ interface ArchivoValidadorCardProps {
   maxSizeMB: number;
   loading: boolean;
   onValidate: (file: File) => void;
+  /**
+   * Avisa a quien lo usa de que el archivo cambió (o se quitó, con `null`) para
+   * que descarte la validación anterior. Sin esto, cambiar el archivo dejaba en
+   * pantalla el resultado del archivo viejo, y se podía confirmar con datos que
+   * ya no eran los del Excel elegido.
+   */
+  onFileChange?: (file: File | null) => void;
   icon?: React.ReactNode;
   surface?: 'card' | 'plain';
 }
@@ -19,6 +26,7 @@ export const ArchivoValidadorCard: React.FC<ArchivoValidadorCardProps> = ({
   maxSizeMB,
   loading,
   onValidate,
+  onFileChange,
   icon = <CheckCircle2 className="h-6 w-6" />,
   surface = 'card',
 }) => {
@@ -28,6 +36,7 @@ export const ArchivoValidadorCard: React.FC<ArchivoValidadorCardProps> = ({
 
   const clearSelectedFile = () => {
     setSelectedFile(null);
+    onFileChange?.(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -51,11 +60,15 @@ export const ArchivoValidadorCard: React.FC<ArchivoValidadorCardProps> = ({
     }
 
     setSelectedFile(file);
+    onFileChange?.(file);
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) validateAndSetFile(file);
+    // Permitir volver a elegir el mismo archivo (algunos navegadores no disparan
+    // `change` si el valor no cambia).
+    e.target.value = '';
   };
 
   const handleDrag = (e: DragEvent<HTMLLabelElement>) => {

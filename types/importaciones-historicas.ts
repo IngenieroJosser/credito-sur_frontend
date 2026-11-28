@@ -58,17 +58,24 @@ export interface RevisionHistoricaResultado {
   total: number;
   huella: string;
   decisiones: DecisionesHistoricas;
-  vistaIntegral?: {
-    conteos: { inventario: number; clientes: number; dinero: number; articulos: number };
-    totalErrores: number;
-    totalAdvertencias: number;
-    errores: AvisoIntegral[];
-    advertencias: AvisoIntegral[];
-    filasPorResolver: number;
-    cuadre: boolean;
-    seleccion?: SeleccionHistorica;
-  };
+  vistaIntegral?: VistaIntegral & { seleccion?: SeleccionHistorica };
 }
+
+export interface VistaIntegral {
+  conteos: { inventario: number; clientes: number; dinero: number; articulos: number };
+  totalErrores: number;
+  totalAdvertencias: number;
+  errores: AvisoIntegral[];
+  advertencias: AvisoIntegral[];
+  filasPorResolver: number;
+  cuadre: boolean;
+}
+export type ValidacionLibroIntegral = RevisionHistoricaResultado | {
+  operativa: VistaIntegral & {
+    confirmable: boolean;
+    impactoCaja?: { hayMovimientos: boolean; totalSalida: number; totalEntrada: number; unidadesInventario: number };
+  };
+};
 
 interface AvisoIntegral { hoja: string; fila: number; campo: string; mensaje: string }
 export interface SeleccionHistorica { inventario: string[]; clientes: string[]; referencias: string[] }
